@@ -12,8 +12,9 @@ type Body struct {
 }
 
 var (
-	ErrBodyBytes = errors.New("unable to read body bytes")
-	ErrBodyJSON  = errors.New("unable to read body json")
+	ErrBodyBytes     = errors.New("unable to read body bytes")
+	ErrBodyJSON      = errors.New("unable to read body json")
+	ErrBodyNilReader = errors.New("reader is nil")
 )
 
 func NewBody(reader io.Reader) *Body {
@@ -29,6 +30,10 @@ func (body *Body) IsCached() bool {
 func (body *Body) Bytes() ([]byte, error) {
 	if body.IsCached() {
 		return body.cached, nil
+	}
+
+	if body.reader == nil {
+		return nil, errors.Join(ErrBodyBytes, ErrBodyNilReader)
 	}
 
 	bytes, err := io.ReadAll(body.reader)
