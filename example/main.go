@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/studiolambda/akumu"
 	"github.com/studiolambda/akumu/http"
 )
@@ -11,9 +14,57 @@ func handler(request http.Request) (response http.Response) {
 	})
 }
 
+func sse(request http.Request) (response http.Response) {
+	return response.HTML(`
+	<!DOCTYPE html>
+	<html lang="en">
+	  <head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>SSE</title>
+	  </head>
+	  <body onload="onLoaded()">
+		<h1>Server Sent Events</h1>
+		<div id="main">
+		  <h3 id="rand-container">Random Number</h3>
+		  <div id="random-number"></div>
+		</div>
+		<script>
+		  const onLoaded = () => {
+			let eventSource = new EventSource("/stream");
+			eventSource.onmessage = (event) => {
+			  document.getElementById("random-number").innerHTML = event.data;
+			};
+		  };
+		</script>
+	  </body>
+	</html>
+	`)
+}
+
+func stream(request http.Request) (response http.Response) {
+	messages := make(chan http.SSEEvent, 5)
+
+	go func() {
+		defer close(messages)
+
+		for i := 0; i < 5; i++ {
+			messages <- http.SSEEvent{
+				Data: []byte(fmt.Sprintf("%d", i)),
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
+	return response.SSE(messages)
+}
+
 func main() {
 	akumu := akumu.New()
 
 	akumu.Get("/", handler)
+	akumu.Get("/sse", sse)
+	akumu.Get("/stream", stream)
 	akumu.Start()
 }

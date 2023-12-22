@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 )
 
@@ -10,7 +11,51 @@ type Response struct {
 	status  Status
 	version Version
 	headers Headers
-	body    *Body
+	body    Body
+	handler RawHandler
+}
+
+type SSEEvent struct {
+	ID    string
+	Event string
+	Data  []byte
+	Retry int
+}
+
+func (event SSEEvent) Bytes() []byte {
+	var buffer bytes.Buffer
+
+	if event.ID != "" {
+		buffer.WriteString("id: ")
+		buffer.WriteString(event.ID)
+		buffer.WriteString("\n")
+	}
+
+	if event.Event != "" {
+		buffer.WriteString("event: ")
+		buffer.WriteString(event.Event)
+		buffer.WriteString("\n")
+	}
+
+	if event.Retry > 0 {
+		buffer.WriteString("retry: ")
+		buffer.WriteString(fmt.Sprintf("%d", event.Retry))
+		buffer.WriteString("\n")
+	}
+
+	if len(event.Data) > 0 {
+		buffer.WriteString("data: ")
+		buffer.Write(event.Data)
+		buffer.WriteString("\n")
+	}
+
+	buffer.WriteString("\n")
+
+	return buffer.Bytes()
+}
+
+func (event SSEEvent) String() string {
+	return string(event.Bytes())
 }
 
 func (response *Response) safeHeaders() *Headers {
@@ -26,16 +71,16 @@ func (response Response) safe() Response {
 		response.headers = make(Headers)
 	}
 
-	if response.body == nil {
-		response.body = NewBody(bytes.NewReader([]byte{}))
-	}
-
 	if response.status == 0 {
 		response.status = StatusOK
 	}
 
 	if response.version == "" {
 		response.version = Version1_1
+	}
+
+	if response.handler == nil {
+		response.handler = bodyHandler
 	}
 
 	return response
@@ -59,8 +104,55 @@ func (response Response) Version(version Version) Response {
 	return response
 }
 
-func (response Response) Body(body *Body) Response {
+func (response Response) Body(body Body) Response {
 	response.body = body
+
+	return response
+}
+
+func (response Response) Stream(messages <-chan []byte) Response {
+	response.handler = streamHandler(messages)
+
+	return response.
+		Header("Access-Control-Allow-Origin", "*").
+		Header("Cache-Control", "no-cache").
+		Header("Connection", "keep-alive").
+		Header("Content-Type", "text/event-stream")
+}
+
+func (response Response) SSE(messages <-chan SSEEvent) Response {
+	response.handler = sseHandler(messages)
+
+	return response.
+		Header("Access-Control-Allow-Origin", "*").
+		Header("Cache-Control", "no-cache").
+		Header("Connection", "keep-alive").
+		Header("Content-Type", "text/event-stream")
+}
+
+// func (response Response) SSE(handler SSEHandler) Response {
+// 	response.stream = func(messages chan<- []byte) {
+// 		events := make(chan SSEEvent, cap(messages))
+
+// 		go func() {
+// 			handler(events)
+// 			close(events)
+// 		}()
+
+// 		for event := range events {
+// 			messages <- event.Bytes()
+// 		}
+// 	}
+
+// 	return response.
+// 		Header("Access-Control-Allow-Origin", "*").
+// 		Header("Cache-Control", "no-cache").
+// 		Header("Connection", "keep-alive").
+// 		Header("Content-Type", "text/event-stream")
+// }
+
+func (response Response) Handler(handler RawHandler) Response {
+	response.handler = handler
 
 	return response
 }
@@ -88,6 +180,12 @@ func (response Response) ErrorJSON(err error) Response {
 	return response.
 		Header("Content-Type", "application/json").
 		BodyBytes(body)
+}
+
+func (response Response) HTML(html string) Response {
+	return response.
+		Header("Content-Type", "text/html").
+		BodyBytes([]byte(html))
 }
 
 func (response Response) JSON(value any) Response {

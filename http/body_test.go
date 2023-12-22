@@ -36,9 +36,7 @@ func TestBodyBytes(t *testing.T) {
 
 		bytes, err := body.Bytes()
 
-		require.Error(t, err)
-		require.ErrorIs(t, err, http.ErrBodyBytes)
-		require.ErrorIs(t, err, http.ErrBodyNilReader)
-		require.Equal(t, []byte(nil), bytes)
+		require.NoError(t, err)
+		require.Equal(t, []byte{}, bytes)
 	})
 }
