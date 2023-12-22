@@ -44,9 +44,18 @@ func streamHandler(messages <-chan []byte) RawHandler {
 
 		writer.WriteHeader(int(response.status))
 
-		for message := range messages {
-			writer.Write(message)
-			writer.Flush()
+		for {
+			select {
+			case <-request.Context().Done():
+				return
+			case message, ok := <-messages:
+				if !ok {
+					return
+				}
+
+				writer.Write(message)
+				writer.Flush()
+			}
 		}
 	}
 }
@@ -61,9 +70,18 @@ func sseHandler(messages <-chan SSEEvent) RawHandler {
 
 		writer.WriteHeader(int(response.status))
 
-		for message := range messages {
-			writer.Write(message.Bytes())
-			writer.Flush()
+		for {
+			select {
+			case <-request.Context().Done():
+				return
+			case message, ok := <-messages:
+				if !ok {
+					return
+				}
+
+				writer.Write(message.Bytes())
+				writer.Flush()
+			}
 		}
 	}
 }

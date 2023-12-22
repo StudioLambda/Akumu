@@ -130,27 +130,6 @@ func (response Response) SSE(messages <-chan SSEEvent) Response {
 		Header("Content-Type", "text/event-stream")
 }
 
-// func (response Response) SSE(handler SSEHandler) Response {
-// 	response.stream = func(messages chan<- []byte) {
-// 		events := make(chan SSEEvent, cap(messages))
-
-// 		go func() {
-// 			handler(events)
-// 			close(events)
-// 		}()
-
-// 		for event := range events {
-// 			messages <- event.Bytes()
-// 		}
-// 	}
-
-// 	return response.
-// 		Header("Access-Control-Allow-Origin", "*").
-// 		Header("Cache-Control", "no-cache").
-// 		Header("Connection", "keep-alive").
-// 		Header("Content-Type", "text/event-stream")
-// }
-
 func (response Response) Handler(handler RawHandler) Response {
 	response.handler = handler
 

@@ -8,9 +8,15 @@ import (
 	"github.com/studiolambda/akumu/http"
 )
 
+type User struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
 func handler(request http.Request) (response http.Response) {
-	return response.Status(http.StatusCreated).JSON(map[string]string{
-		"message": "Hello, World!",
+	return response.Status(http.StatusCreated).JSON(User{
+		Name:  "John Doe",
+		Email: "foo@example.com",
 	})
 }
 
