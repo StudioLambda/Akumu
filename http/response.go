@@ -15,14 +15,14 @@ type Response struct {
 	handler RawHandler
 }
 
-type SSEEvent struct {
+type SSE struct {
 	ID    string
 	Event string
 	Data  []byte
 	Retry int
 }
 
-func (event SSEEvent) Bytes() []byte {
+func (event SSE) Bytes() []byte {
 	var buffer bytes.Buffer
 
 	if event.ID != "" {
@@ -54,7 +54,7 @@ func (event SSEEvent) Bytes() []byte {
 	return buffer.Bytes()
 }
 
-func (event SSEEvent) String() string {
+func (event SSE) String() string {
 	return string(event.Bytes())
 }
 
@@ -86,6 +86,12 @@ func (response Response) safe() Response {
 	return response
 }
 
+func (response Response) Headers(headers Headers) Response {
+	response.headers = headers
+
+	return response
+}
+
 func (response Response) Header(key, value string) Response {
 	response.safeHeaders().Insert(key, value)
 
@@ -111,23 +117,25 @@ func (response Response) Body(body Body) Response {
 }
 
 func (response Response) Stream(messages <-chan []byte) Response {
-	response.handler = streamHandler(messages)
-
 	return response.
+		Handler(streamHandler(messages)).
 		Header("Access-Control-Allow-Origin", "*").
 		Header("Cache-Control", "no-cache").
 		Header("Connection", "keep-alive").
 		Header("Content-Type", "text/event-stream")
 }
 
-func (response Response) SSE(messages <-chan SSEEvent) Response {
-	response.handler = sseHandler(messages)
-
+func (response Response) SSE(messages <-chan SSE) Response {
 	return response.
+		Handler(sseHandler(messages)).
 		Header("Access-Control-Allow-Origin", "*").
 		Header("Cache-Control", "no-cache").
 		Header("Connection", "keep-alive").
 		Header("Content-Type", "text/event-stream")
+}
+
+func (response Response) Error(err error) Response {
+	return response.Handler(errorHandler(err))
 }
 
 func (response Response) Handler(handler RawHandler) Response {
@@ -144,23 +152,6 @@ func (response Response) BodyBytes(body []byte) Response {
 	return response.BodyReader(bytes.NewReader(body))
 }
 
-func (response Response) Error(err error) Response {
-	body := []byte(err.Error())
-	response.body = NewBody(bytes.NewReader(body))
-
-	return response
-}
-
-func (response Response) ErrorJSON(err error) Response {
-	body, _ := json.Marshal(map[string]string{
-		"error": err.Error(),
-	})
-
-	return response.
-		Header("Content-Type", "application/json").
-		BodyBytes(body)
-}
-
 func (response Response) HTML(html string) Response {
 	return response.
 		Header("Content-Type", "text/html").
@@ -171,7 +162,7 @@ func (response Response) JSON(value any) Response {
 	encoded, err := json.Marshal(value)
 
 	if err != nil {
-		return response.ErrorJSON(err)
+		return response.Error(err)
 	}
 
 	return response.
@@ -179,6 +170,10 @@ func (response Response) JSON(value any) Response {
 		BodyBytes(encoded)
 }
 
-func (response Response) IsJson() bool {
+func (response Response) IsJSON() bool {
 	return response.safeHeaders().Contains("Content-Type", "application/json")
+}
+
+func (response Response) IsHTML() bool {
+	return response.safeHeaders().Contains("Content-Type", "text/html")
 }

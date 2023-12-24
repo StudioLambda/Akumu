@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"strings"
 )
 
 type Headers http.Header
@@ -14,7 +15,7 @@ func (headers Headers) Has(key string) bool {
 
 func (headers Headers) Contains(key, value string) bool {
 	for _, val := range headers.All(key) {
-		if val == value {
+		if strings.Contains(val, value) {
 			return true
 		}
 	}
@@ -46,4 +47,14 @@ func (headers Headers) Clone() Headers {
 	clone := http.Header(headers).Clone()
 
 	return Headers(clone)
+}
+
+func (headers Headers) Merge(other Headers) Headers {
+	for key, values := range other {
+		for _, value := range values {
+			headers.Append(key, value)
+		}
+	}
+
+	return headers
 }

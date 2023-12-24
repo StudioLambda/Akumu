@@ -1,6 +1,7 @@
 package akumu
 
 import (
+	"fmt"
 	netHttp "net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -17,5 +18,6 @@ func New() *Akumu {
 }
 
 func (akumu *Akumu) Start() {
+	fmt.Printf("Starting server on: http://localhost:3000\n")
 	netHttp.ListenAndServe(":3000", akumu.router)
 }

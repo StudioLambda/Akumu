@@ -48,3 +48,11 @@ func (request Request) Headers() Headers {
 func (request Request) Body() Body {
 	return request.body
 }
+
+// func (request Request) Validate(value any) error {
+// 	if validator, ok := value.(golidate.Validator); ok {
+// 		results := validator.Validate(context.Background()).Failed()
+// 	}
+
+// 	return nil
+// }

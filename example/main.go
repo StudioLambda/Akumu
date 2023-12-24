@@ -50,13 +50,13 @@ func sse(request http.Request) (response http.Response) {
 }
 
 func stream(request http.Request) (response http.Response) {
-	messages := make(chan http.SSEEvent, 5)
+	messages := make(chan http.SSE, 5)
 
 	go func() {
 		defer close(messages)
 
 		for i := 0; i < 5; i++ {
-			messages <- http.SSEEvent{
+			messages <- http.SSE{
 				Data: []byte(fmt.Sprintf("%d", i)),
 			}
 			time.Sleep(1 * time.Second)
@@ -66,10 +66,19 @@ func stream(request http.Request) (response http.Response) {
 	return response.SSE(messages)
 }
 
+func failure(request http.Request) (response http.Response) {
+	err := http.NewError(nil).
+		Status(http.StatusNotFound).
+		Header("X-Error", "true")
+
+	return response.Status(http.StatusNotFound).Error(err)
+}
+
 func main() {
 	akumu := akumu.New()
 
 	akumu.Get("/", handler)
+	akumu.Get("/failure", failure)
 	akumu.Get("/sse", sse)
 	akumu.Get("/stream", stream)
 	akumu.Start()
