@@ -96,7 +96,9 @@ func errorHandler(err error) RawHandler {
 
 		for i := range errs {
 			if err, ok := errs[len(errs)-1-i].(ErrorStatus); ok {
-				status = err.ErrorStatus()
+				if s := err.ErrorStatus(); s != 0 {
+					status = s
+				}
 			}
 
 			if err, ok := errs[len(errs)-1-i].(ErrorHeaders); ok {
