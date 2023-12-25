@@ -128,7 +128,7 @@ func errorHandler(err error) RawHandler {
 			writer.WriteHeader(int(status))
 
 			writer.Write([]byte(
-				fmt.Sprintf("<h1>%s — %d</h1><p>%s</p>", status, status, message),
+				fmt.Sprintf("<h1>%s - %d</h1><p>%s</p>", status, status, message),
 			))
 
 			return

@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/studiolambda/akumu"
 	"github.com/studiolambda/akumu/http"
+	"github.com/studiolambda/golidate"
+	"github.com/studiolambda/golidate/rule"
 )
 
 type User struct {
@@ -13,11 +16,34 @@ type User struct {
 	Email string `json:"email"`
 }
 
+func (user User) Validate(ctx context.Context) golidate.Results {
+	return golidate.Validate(
+		ctx,
+		golidate.Value(user.Name).Name("name").Rules(
+			rule.MinLen(2),
+			rule.MaxLen(256),
+		),
+		golidate.Value(user.Email).Name("email").Rules(
+			rule.Email(),
+		),
+	)
+}
+
 func handler(request http.Request) (response http.Response) {
 	return response.Status(http.StatusCreated).JSON(User{
 		Name:  "John Doe",
 		Email: "foo@example.com",
 	})
+}
+
+func create(request http.Request) (response http.Response) {
+	var user User
+
+	if err := request.Validate(&user); err != nil {
+		return response.Status(http.StatusBadRequest).Error(err)
+	}
+
+	return response.Status(http.StatusCreated).JSON(user)
 }
 
 func sse(request http.Request) (response http.Response) {
@@ -78,6 +104,7 @@ func main() {
 	akumu := akumu.New()
 
 	akumu.Get("/", handler)
+	akumu.Post("/", create)
 	akumu.Get("/failure", failure)
 	akumu.Get("/sse", sse)
 	akumu.Get("/stream", stream)

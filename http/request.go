@@ -2,7 +2,11 @@ package http
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
+
+	"github.com/studiolambda/golidate"
 )
 
 type Request struct {
@@ -13,6 +17,12 @@ type Request struct {
 	body    Body
 	ctx     context.Context
 }
+
+var (
+	ErrRequestValidateJSON       = errors.New("unable to validate request json")
+	ErrRequestValidate           = errors.New("unable to validate request")
+	ErrRequestUnknownContentType = errors.New("unknown content type")
+)
 
 func NewRequest(request *http.Request) Request {
 	return Request{
@@ -49,10 +59,36 @@ func (request Request) Body() Body {
 	return request.body
 }
 
-// func (request Request) Validate(value any) error {
-// 	if validator, ok := value.(golidate.Validator); ok {
-// 		results := validator.Validate(context.Background()).Failed()
-// 	}
+func (request Request) JSON(dest any) error {
+	return request.body.JSON(dest)
+}
 
-// 	return nil
-// }
+func (request Request) ValidateJSON(dest golidate.Validator) error {
+	if err := request.JSON(dest); err != nil {
+		return errors.Join(ErrRequestValidateJSON, err)
+	}
+
+	if results := dest.Validate(request.ctx); !results.PassesAll() {
+		err := fmt.Errorf("%w: validation failed", ErrRequestValidateJSON)
+
+		return NewError(err).
+			Status(StatusUnprocessableEntity)
+	}
+
+	return nil
+}
+
+func (request Request) Validate(dest golidate.Validator) error {
+	if request.Headers().Contains("Content-Type", "application/json") {
+		if err := request.ValidateJSON(dest); err != nil {
+			return errors.Join(ErrRequestValidate, err)
+		}
+
+		return nil
+	}
+
+	return errors.Join(
+		ErrRequestValidate,
+		fmt.Errorf("%w: %s", ErrRequestUnknownContentType, request.Headers().First("Content-Type")),
+	)
+}

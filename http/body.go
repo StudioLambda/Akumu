@@ -13,11 +13,10 @@ type Body struct {
 }
 
 var (
-	ErrBodyBytes      = errors.New("unable to read body bytes")
-	ErrBodyJSON       = errors.New("unable to read body json")
-	ErrBodyStrictJSON = errors.New("unable to read body strict json")
-	ErrBodyReader     = errors.New("unable to create body reader")
-	ErrBodyNilReader  = errors.New("reader is nil")
+	ErrBodyBytes     = errors.New("unable to read body bytes")
+	ErrBodyJSON      = errors.New("unable to read body json")
+	ErrBodyReader    = errors.New("unable to create body reader")
+	ErrBodyNilReader = errors.New("reader is nil")
 )
 
 func NewBody(reader io.Reader) Body {
@@ -114,23 +113,6 @@ func (body *Body) JSON(result any) error {
 
 	if err := json.Unmarshal(bytes, result); err != nil {
 		return errors.Join(ErrBodyJSON, err)
-	}
-
-	return nil
-}
-
-func (body *Body) StrictJSON(result any) error {
-	reader, err := body.TryReader()
-
-	if err != nil {
-		return errors.Join(ErrBodyStrictJSON, err)
-	}
-
-	decoder := json.NewDecoder(reader)
-	decoder.DisallowUnknownFields()
-
-	if err := decoder.Decode(result); err != nil {
-		return errors.Join(ErrBodyStrictJSON, err)
 	}
 
 	return nil
