@@ -94,21 +94,21 @@ func errorHandler(err error) RawHandler {
 	return func(request Request, response Response, writer Writer) {
 		headers := response.headers
 		status := response.status
-		errs := unwrapErrors(err)
+		traces := stackTrace(err)
 		fields := make(Fields)
 
-		for i := range errs {
-			if err, ok := errs[len(errs)-1-i].(ErrorStatus); ok {
+		for i := range traces {
+			if err, ok := traces[len(traces)-1-i].(ErrorStatus); ok {
 				if s := err.ErrorStatus(); s != 0 {
 					status = s
 				}
 			}
 
-			if err, ok := errs[len(errs)-1-i].(ErrorHeaders); ok {
+			if err, ok := traces[len(traces)-1-i].(ErrorHeaders); ok {
 				headers = headers.Merge(err.ErrorHeaders())
 			}
 
-			if err, ok := errs[len(errs)-1-i].(ErrorFields); ok {
+			if err, ok := traces[len(traces)-1-i].(ErrorFields); ok {
 				fields = fields.Merge(err.ErrorFields())
 			}
 		}

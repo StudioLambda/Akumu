@@ -1,7 +1,5 @@
 package http
 
-import "errors"
-
 type Fields map[string][]string
 
 type ErrorHeaders interface {
@@ -95,22 +93,21 @@ func (fields Fields) Merge(other Fields) Fields {
 	return fields
 }
 
-func unwrapErrors(err error) []error {
-	result := []error{err}
+func stackTrace(err error) []error {
+	result := make([]error, 0)
 
+	// Unwrap joined errors and ignore the join itself.
 	if e, ok := err.(interface {
 		Unwrap() []error
 	}); ok {
 		for _, err := range e.Unwrap() {
-			result = append(result, unwrapErrors(err)...)
+			result = append(result, stackTrace(err)...)
 		}
 
 		return result
 	}
 
-	if other := errors.Unwrap(err); other != nil {
-		return append(result, unwrapErrors(other)...)
-	}
-
-	return result
+	// We can ignore the wrapped error, as it's contained
+	// in the fmt.Errorf string.
+	return append(result, err)
 }
