@@ -7,6 +7,8 @@ import (
 	"net/http"
 
 	"github.com/studiolambda/golidate"
+	"github.com/studiolambda/golidate/format"
+	"github.com/studiolambda/golidate/translate/language"
 )
 
 type Request struct {
@@ -19,8 +21,8 @@ type Request struct {
 }
 
 var (
-	ErrRequestValidateJSON       = errors.New("unable to validate request json")
-	ErrRequestValidate           = errors.New("unable to validate request")
+	ErrRequestValidate           = errors.New("request validation failed")
+	ErrValidationFailed          = errors.New("validation failed")
 	ErrRequestUnknownContentType = errors.New("unknown content type")
 )
 
@@ -65,14 +67,20 @@ func (request Request) JSON(dest any) error {
 
 func (request Request) ValidateJSON(dest golidate.Validator) error {
 	if err := request.JSON(dest); err != nil {
-		return errors.Join(ErrRequestValidateJSON, err)
+		return NewError(errors.Join(ErrRequestValidate, err)).
+			Status(StatusBadRequest)
 	}
 
 	if results := dest.Validate(request.ctx); !results.PassesAll() {
-		err := fmt.Errorf("%w: validation failed", ErrRequestValidateJSON)
+		fields := results.
+			Failed().
+			Translate(language.English).
+			Group().
+			Messages(format.Capitalize())
 
-		return NewError(err).
-			Status(StatusUnprocessableEntity)
+		return NewError(ErrValidationFailed).
+			Status(StatusUnprocessableEntity).
+			Fields(fields)
 	}
 
 	return nil
@@ -81,14 +89,17 @@ func (request Request) ValidateJSON(dest golidate.Validator) error {
 func (request Request) Validate(dest golidate.Validator) error {
 	if request.Headers().Contains("Content-Type", "application/json") {
 		if err := request.ValidateJSON(dest); err != nil {
-			return errors.Join(ErrRequestValidate, err)
+			return err
 		}
 
 		return nil
 	}
 
-	return errors.Join(
+	err := errors.Join(
 		ErrRequestValidate,
 		fmt.Errorf("%w: %s", ErrRequestUnknownContentType, request.Headers().First("Content-Type")),
 	)
+
+	return NewError(err).
+		Status(StatusBadRequest)
 }

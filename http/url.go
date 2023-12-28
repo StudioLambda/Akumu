@@ -48,7 +48,7 @@ func (url URL) Fragment() string {
 	return url.native.Fragment
 }
 
-func (url MutableURL) SetFragment(fragment string) {
+func (url *MutableURL) SetFragment(fragment string) {
 	url.native.Fragment = fragment
 }
 
@@ -68,7 +68,7 @@ func (url URL) QueryAll(key string) []string {
 	return url.native.Query()[key]
 }
 
-func (url MutableURL) SetQuery(key, value string) {
+func (url *MutableURL) SetQuery(key, value string) {
 	query := url.native.Query()
 
 	query.Set(key, value)
@@ -76,7 +76,7 @@ func (url MutableURL) SetQuery(key, value string) {
 	url.native.RawQuery = query.Encode()
 }
 
-func (url MutableURL) AppendQuery(key, value string) {
+func (url *MutableURL) AppendQuery(key, value string) {
 	query := url.native.Query()
 
 	query.Add(key, value)

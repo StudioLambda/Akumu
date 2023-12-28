@@ -2,6 +2,8 @@ package http
 
 import "errors"
 
+type Fields map[string][]string
+
 type ErrorHeaders interface {
 	ErrorHeaders() Headers
 }
@@ -10,10 +12,20 @@ type ErrorStatus interface {
 	ErrorStatus() Status
 }
 
+type ErrorFields interface {
+	ErrorFields() Fields
+}
+
 type Error struct {
 	error   error
 	status  Status
 	headers Headers
+	fields  Fields
+}
+
+type ErrorResponse struct {
+	Message string `json:"message"`
+	Fields  Fields `json:"fields"`
 }
 
 func NewError(err error) Error {
@@ -21,6 +33,7 @@ func NewError(err error) Error {
 		error:   err,
 		status:  0,
 		headers: make(Headers),
+		fields:  make(Fields),
 	}
 }
 
@@ -42,6 +55,18 @@ func (err Error) Header(key, value string) Error {
 	return err
 }
 
+func (err Error) Field(key string, values ...string) Error {
+	err.fields[key] = append(err.fields[key], values...)
+
+	return err
+}
+
+func (err Error) Fields(fields Fields) Error {
+	err.fields = fields
+
+	return err
+}
+
 func (err Error) Error() string {
 	if err.error == nil {
 		return ""
@@ -56,6 +81,18 @@ func (err Error) ErrorHeaders() Headers {
 
 func (err Error) ErrorStatus() Status {
 	return err.status
+}
+
+func (err Error) ErrorFields() Fields {
+	return err.fields
+}
+
+func (fields Fields) Merge(other Fields) Fields {
+	for key, values := range other {
+		fields[key] = append(fields[key], values...)
+	}
+
+	return fields
 }
 
 func unwrapErrors(err error) []error {

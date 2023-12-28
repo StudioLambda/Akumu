@@ -29,8 +29,8 @@ func (user User) Validate(ctx context.Context) golidate.Results {
 	)
 }
 
-func handler(request http.Request) (response http.Response) {
-	return response.Status(http.StatusCreated).JSON(User{
+func show(request http.Request) (response http.Response) {
+	return response.JSON(User{
 		Name:  "John Doe",
 		Email: "foo@example.com",
 	})
@@ -40,8 +40,10 @@ func create(request http.Request) (response http.Response) {
 	var user User
 
 	if err := request.Validate(&user); err != nil {
-		return response.Status(http.StatusBadRequest).Error(err)
+		return response.Error(err)
 	}
+
+	// ...
 
 	return response.Status(http.StatusCreated).JSON(user)
 }
@@ -103,7 +105,7 @@ func failure(request http.Request) (response http.Response) {
 func main() {
 	akumu := akumu.New()
 
-	akumu.Get("/", handler)
+	akumu.Get("/", show)
 	akumu.Post("/", create)
 	akumu.Get("/failure", failure)
 	akumu.Get("/sse", sse)

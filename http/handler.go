@@ -1,8 +1,11 @@
 package http
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/studiolambda/golidate/format"
 )
 
 type RawHandler func(request Request, response Response, writer Writer)
@@ -91,8 +94,8 @@ func errorHandler(err error) RawHandler {
 	return func(request Request, response Response, writer Writer) {
 		headers := response.headers
 		status := response.status
-		message := err.Error()
 		errs := unwrapErrors(err)
+		fields := make(Fields)
 
 		for i := range errs {
 			if err, ok := errs[len(errs)-1-i].(ErrorStatus); ok {
@@ -104,6 +107,10 @@ func errorHandler(err error) RawHandler {
 			if err, ok := errs[len(errs)-1-i].(ErrorHeaders); ok {
 				headers = headers.Merge(err.ErrorHeaders())
 			}
+
+			if err, ok := errs[len(errs)-1-i].(ErrorFields); ok {
+				fields = fields.Merge(err.ErrorFields())
+			}
 		}
 
 		for key, values := range headers {
@@ -112,13 +119,16 @@ func errorHandler(err error) RawHandler {
 			}
 		}
 
+		result := ErrorResponse{
+			Message: format.Capitalize()(err.Error()),
+			Fields:  fields,
+		}
+
 		if request.Headers().Contains("Accept", "application/json") {
 			writer.Header().Set("Content-Type", "application/json")
 			writer.WriteHeader(int(status))
-
-			writer.Write([]byte(
-				fmt.Sprintf(`{"message":"%s","error":"%s"}`, status.String(), message),
-			))
+			result, _ := json.Marshal(result)
+			writer.Write(result)
 
 			return
 		}
@@ -126,9 +136,8 @@ func errorHandler(err error) RawHandler {
 		if request.Headers().Contains("Accept", "text/html") {
 			writer.Header().Set("Content-Type", "text/html")
 			writer.WriteHeader(int(status))
-
 			writer.Write([]byte(
-				fmt.Sprintf("<h1>%s - %d</h1><p>%s</p>", status, status, message),
+				fmt.Sprintf("<h1>%s - %d</h1><p>%s</p>", status, status, result.Message),
 			))
 
 			return
