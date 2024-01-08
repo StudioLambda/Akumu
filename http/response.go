@@ -11,7 +11,7 @@ type Response struct {
 	status  Status
 	version Version
 	headers Headers
-	body    Body
+	body    *Body
 	handler RawHandler
 }
 
@@ -110,7 +110,7 @@ func (response Response) Version(version Version) Response {
 	return response
 }
 
-func (response Response) Body(body Body) Response {
+func (response Response) Body(body *Body) Response {
 	response.body = body
 
 	return response

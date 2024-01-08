@@ -13,10 +13,10 @@ import (
 
 type Request struct {
 	method  Method
-	url     URL
+	url     *URL
 	headers Headers
 	version Version
-	body    Body
+	body    *Body
 	ctx     context.Context
 }
 
@@ -45,7 +45,7 @@ func (request Request) Method() Method {
 	return request.method
 }
 
-func (request Request) URL() URL {
+func (request Request) URL() *URL {
 	return request.url
 }
 
@@ -57,7 +57,7 @@ func (request Request) Headers() Headers {
 	return request.headers
 }
 
-func (request Request) Body() Body {
+func (request Request) Body() *Body {
 	return request.body
 }
 

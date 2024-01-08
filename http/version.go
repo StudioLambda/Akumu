@@ -9,3 +9,7 @@ const (
 	Version2_0 Version = "HTTP/2.0"
 	Version3_0 Version = "HTTP/3.0"
 )
+
+func (version Version) String() string {
+	return string(version)
+}

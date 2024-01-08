@@ -19,8 +19,8 @@ var (
 	ErrBodyNilReader = errors.New("reader is nil")
 )
 
-func NewBody(reader io.Reader) Body {
-	return Body{
+func NewBody(reader io.Reader) *Body {
+	return &Body{
 		reader: reader,
 		cached: nil,
 	}

@@ -1,9 +1,12 @@
 package akumu
 
-import "github.com/studiolambda/akumu/http"
+import (
+	"github.com/go-chi/chi/v5"
+	"github.com/studiolambda/akumu/http"
+)
 
 func (akumu *Akumu) Handle(method http.Method, path string, handler http.Handler) {
-	akumu.router.Method(string(method), path, handler)
+	akumu.server.Handler.(chi.Router).Method(string(method), path, handler)
 }
 
 func (akumu *Akumu) Get(path string, handler http.Handler) {

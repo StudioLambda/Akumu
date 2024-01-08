@@ -50,11 +50,13 @@ func (headers Headers) Clone() Headers {
 }
 
 func (headers Headers) Merge(other Headers) Headers {
+	cloned := headers.Clone()
+
 	for key, values := range other {
 		for _, value := range values {
-			headers.Append(key, value)
+			cloned.Append(key, value)
 		}
 	}
 
-	return headers
+	return cloned
 }

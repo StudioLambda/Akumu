@@ -103,12 +103,12 @@ func failure(request http.Request) (response http.Response) {
 }
 
 func main() {
-	akumu := akumu.New()
+	app := akumu.New()
 
-	akumu.Get("/", show)
-	akumu.Post("/", create)
-	akumu.Get("/failure", failure)
-	akumu.Get("/sse", sse)
-	akumu.Get("/stream", stream)
-	akumu.Start()
+	app.Get("/", show)
+	app.Post("/", create)
+	app.Get("/failure", failure)
+	app.Get("/sse", sse)
+	app.Get("/stream", stream)
+	app.Start()
 }
