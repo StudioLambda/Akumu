@@ -26,7 +26,7 @@ func sse(request *http.Request) error {
 		defer close(messages)
 
 		for i := 0; i < 5; i++ {
-			messages <- []byte(fmt.Sprintf("event: %d\n\n", i))
+			messages <- []byte(fmt.Sprintf("data: %d\n\n", i))
 			time.Sleep(1 * time.Second)
 		}
 	}()

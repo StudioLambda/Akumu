@@ -126,8 +126,8 @@ func (responder Responder) Stream(stream <-chan []byte) Responder {
 
 func (responder Responder) SSE(stream <-chan []byte) Responder {
 	return responder.
-		Stream(stream).
-		Header("Content-Type", "text/event-stream")
+		Header("Content-Type", "text/event-stream").
+		Stream(stream)
 }
 
 func (responder Responder) Failed(err error) Responder {
