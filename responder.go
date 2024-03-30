@@ -11,11 +11,35 @@ type ResponderHandler func(http.ResponseWriter, *http.Request, Responder)
 
 type Responder struct {
 	handler ResponderHandler
-	code    int
+	status  int
 	headers http.Header
 	body    io.Reader
 	err     error
 	stream  <-chan []byte
+}
+
+func HandleError(writer http.ResponseWriter, request *http.Request, err error, status int) {
+	if responder, ok := err.(Responder); ok {
+		responder.Handle(writer, request)
+
+		return
+	}
+
+	if request.Header.Get("Accept") == "application/problem+json" {
+		problem := Problem{
+			Type:     "about:blank",
+			Title:    http.StatusText(status),
+			Detail:   err.Error(),
+			Status:   status,
+			Instance: request.URL.String(),
+		}
+
+		Failed(problem).Handle(writer, request)
+
+		return
+	}
+
+	http.Error(writer, err.Error(), status)
 }
 
 func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, responder Responder) {
@@ -26,7 +50,7 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 	}
 
 	if responder.err != nil {
-		http.Error(writer, responder.err.Error(), responder.code)
+		HandleError(writer, request, responder.err, responder.status)
 
 		return
 	}
@@ -35,19 +59,19 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 		body, err := io.ReadAll(responder.body)
 
 		if err != nil {
-			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			HandleError(writer, request, err, http.StatusInternalServerError)
 
 			return
 		}
 
-		writer.WriteHeader(responder.code)
+		writer.WriteHeader(responder.status)
 		writer.Write(body)
 
 		return
 	}
 
 	if responder.stream != nil {
-		writer.WriteHeader(responder.code)
+		writer.WriteHeader(responder.status)
 
 		for {
 			select {
@@ -64,13 +88,13 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 		}
 	}
 
-	writer.WriteHeader(responder.code)
+	writer.WriteHeader(responder.status)
 }
 
-func Response(code int) Responder {
+func Response(status int) Responder {
 	return Responder{
 		handler: DefaultResponderHandler,
-		code:    code,
+		status:  status,
 		headers: make(http.Header),
 		body:    nil,
 		err:     nil,
@@ -78,12 +102,16 @@ func Response(code int) Responder {
 	}
 }
 
-func (responder Responder) Error() string {
-	return http.StatusText(responder.code)
+func Failed(err error) Responder {
+	return Response(http.StatusInternalServerError).Failed(err)
 }
 
-func (responder Responder) Code(code int) Responder {
-	responder.code = code
+func (responder Responder) Error() string {
+	return http.StatusText(responder.status)
+}
+
+func (responder Responder) Status(status int) Responder {
+	responder.status = status
 
 	return responder
 }
@@ -95,12 +123,14 @@ func (responder Responder) Headers(headers http.Header) Responder {
 }
 
 func (responder Responder) Header(key, value string) Responder {
+	responder.headers = responder.headers.Clone()
 	responder.headers.Set(key, value)
 
 	return responder
 }
 
 func (responder Responder) AppendHeader(key, value string) Responder {
+	responder.headers = responder.headers.Clone()
 	responder.headers.Add(key, value)
 
 	return responder
@@ -131,9 +161,40 @@ func (responder Responder) SSE(stream <-chan []byte) Responder {
 }
 
 func (responder Responder) Failed(err error) Responder {
+	if problem, ok := err.(Problem); ok {
+		if problem.Type == "" {
+			problem.Type = "about:blank"
+		}
+
+		if problem.Status == 0 {
+			problem.Status = responder.status
+		}
+
+		if problem.Title == "" {
+			problem.Title = http.StatusText(problem.Status)
+		}
+
+		return responder.
+			Status(problem.Status).
+			JSON(problem).
+			Header("Content-Type", "application/problem+json")
+	}
+
 	responder.err = err
 
 	return responder
+}
+
+func (responder Responder) Text(body string) Responder {
+	return responder.
+		Header("Content-Type", "text/plain").
+		Body([]byte(body))
+}
+
+func (responder Responder) HTML(html string) Responder {
+	return responder.
+		Header("Content-Type", "text/html").
+		Body([]byte(html))
 }
 
 func (responder Responder) JSON(body any) Responder {
@@ -141,7 +202,7 @@ func (responder Responder) JSON(body any) Responder {
 
 	if err := json.NewEncoder(buffer).Encode(body); err != nil {
 		return responder.
-			Code(http.StatusInternalServerError).
+			Status(http.StatusInternalServerError).
 			Failed(err)
 	}
 
