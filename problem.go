@@ -1,4 +1,3 @@
-// This package implements the Problem Details for HTTP APIs (RFC 7807) specification.
 package akumu
 
 // Problem represents a problem details for HTTP APIs.
