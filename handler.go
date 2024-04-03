@@ -4,6 +4,28 @@ import "net/http"
 
 type Handler func(*http.Request) error
 
+func handleError(writer http.ResponseWriter, request *http.Request, err error) {
+	if err == nil {
+		Response(http.StatusOK).Handle(writer, request)
+
+		return
+	}
+
+	if builder, ok := err.(Builder); ok {
+		builder.Handle(writer, request)
+
+		return
+	}
+
+	if responder, ok := err.(Responder); ok {
+		responder.
+			Respond(request).
+			Handle(writer, request)
+	}
+
+	Failed(err).Handle(writer, request)
+}
+
 func (handler Handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	HandleError(writer, request, handler(request), http.StatusInternalServerError)
+	handleError(writer, request, handler(request))
 }

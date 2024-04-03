@@ -27,7 +27,9 @@ func RecoverWith(handler http.Handler, handle func(value any) error) http.Handle
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				akumu.HandleError(writer, request, handle(err), http.StatusInternalServerError)
+				akumu.
+					Failed(handle(err)).
+					Handle(writer, request)
 			}
 		}()
 
