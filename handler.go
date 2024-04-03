@@ -21,11 +21,21 @@ func handleError(writer http.ResponseWriter, request *http.Request, err error) {
 		responder.
 			Respond(request).
 			Handle(writer, request)
+
+		return
 	}
 
-	Failed(err).Handle(writer, request)
+	NewProblem(err, http.StatusInternalServerError).
+		Respond(request).
+		Handle(writer, request)
 }
 
 func (handler Handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	handleError(writer, request, handler(request))
+}
+
+func HandlerFunc(handler Handler) http.HandlerFunc {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		handleError(writer, request, handler(request))
+	})
 }

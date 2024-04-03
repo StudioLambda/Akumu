@@ -30,23 +30,7 @@ func writeHeaders(writer http.ResponseWriter, builder Builder) {
 
 func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, builder Builder) {
 	if builder.err != nil {
-		if builder, ok := builder.err.(Builder); ok {
-			builder.Handle(writer, request)
-
-			return
-		}
-
-		if responder, ok := builder.err.(Responder); ok {
-			responder.
-				Respond(request).
-				Handle(writer, request)
-
-			return
-		}
-
-		NewProblem(builder.err, builder.status).
-			Respond(request).
-			Handle(writer, request)
+		handleError(writer, request, builder.err)
 
 		return
 	}
