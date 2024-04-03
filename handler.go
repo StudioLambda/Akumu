@@ -34,8 +34,12 @@ func (handler Handler) ServeHTTP(writer http.ResponseWriter, request *http.Reque
 	handleError(writer, request, handler(request))
 }
 
-func HandlerFunc(handler Handler) http.HandlerFunc {
+func (handler Handler) HandlerFunc() http.HandlerFunc {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		handleError(writer, request, handler(request))
+		handler.ServeHTTP(writer, request)
 	})
+}
+
+func HandlerFunc(handler func(*http.Request) error) http.HandlerFunc {
+	return Handler(handler).HandlerFunc()
 }
