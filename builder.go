@@ -30,7 +30,8 @@ func writeHeaders(writer http.ResponseWriter, builder Builder) {
 
 func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, builder Builder) {
 	if builder.err != nil {
-		handleError(writer, request, builder.err)
+		parent := builder.WithoutError()
+		handleError(writer, request, builder.err, &parent)
 
 		return
 	}
@@ -142,6 +143,14 @@ func (builder Builder) SSE(stream <-chan []byte) Builder {
 		Stream(stream)
 }
 
+func (builder Builder) Cookie(cookie http.Cookie) Builder {
+	if c := cookie.String(); c != "" {
+		return builder.AppendHeader("Set-Cookie", c)
+	}
+
+	return builder
+}
+
 func (builder Builder) Failed(err error) Builder {
 	builder.err = err
 
@@ -185,5 +194,35 @@ func (builder Builder) Handle(response http.ResponseWriter, request *http.Reques
 }
 
 func (builder Builder) Respond(request *http.Request) Builder {
+	return builder
+}
+
+func (builder Builder) WithoutError() Builder {
+	builder.err = nil
+
+	return builder
+}
+
+func (builder Builder) Merge(other Builder) Builder {
+	if other.status != 0 {
+		builder.status = other.status
+	}
+
+	if other.headers != nil {
+		builder.headers = other.headers
+	}
+
+	if other.body != nil {
+		builder.body = other.body
+	}
+
+	if other.stream != nil {
+		builder.stream = other.stream
+	}
+
+	if other.err != nil {
+		builder.err = other.err
+	}
+
 	return builder
 }

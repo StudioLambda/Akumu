@@ -17,6 +17,10 @@ type Problem struct {
 	Instance string `json:"instance"`
 }
 
+type ProblemDetails interface {
+	Problem() Problem
+}
+
 func NewProblem(err error, status int) Problem {
 	return Problem{
 		Detail: err.Error(),
