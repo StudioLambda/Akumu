@@ -55,6 +55,7 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 
 	if builder.stream != nil {
 		writeHeaders(writer, builder)
+		writer.(http.Flusher).Flush()
 
 		for {
 			select {
