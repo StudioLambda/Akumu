@@ -1,6 +1,8 @@
 package akumu
 
-import "net/http"
+import (
+	"net/http"
+)
 
 type Handler func(*http.Request) error
 
@@ -19,7 +21,7 @@ func handleError(writer http.ResponseWriter, request *http.Request, err error, p
 
 	if builder, ok := err.(Builder); ok {
 		if parent != nil {
-			builder.Merge(*parent).Handle(writer, request)
+			parent.Merge(builder).Handle(writer, request)
 
 			return
 		}
@@ -31,9 +33,8 @@ func handleError(writer http.ResponseWriter, request *http.Request, err error, p
 
 	if responder, ok := err.(Responder); ok {
 		if parent != nil {
-			responder.
-				Respond(request).
-				Merge(*parent).
+			parent.
+				Merge(responder.Respond(request)).
 				Handle(writer, request)
 
 			return
