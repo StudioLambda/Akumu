@@ -49,7 +49,8 @@ func handleError(writer http.ResponseWriter, request *http.Request, err error, p
 
 	if parent != nil {
 		builder := NewProblem(err, http.StatusInternalServerError).
-			Respond(request)
+			Respond(request).
+			Status(0)
 
 		parent.
 			Merge(builder).
