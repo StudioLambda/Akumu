@@ -1,6 +1,7 @@
 package akumu_test
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"testing"
@@ -99,6 +100,7 @@ func TestHandler2(t *testing.T) {
 
 func TestHandler3(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
+	request.Header.Add("Accept", "application/json")
 
 	if err != nil {
 		t.Fatalf("unable to create request: %s", err)
@@ -111,6 +113,26 @@ func TestHandler3(t *testing.T) {
 			"unexpected status code: expected %d, got %d",
 			http.StatusNotImplemented,
 			response.Code,
+		)
+	}
+
+	// v, _ := io.ReadAll(response.Body)
+	// t.Logf("V: %s", string(v))
+	// t.FailNow()
+
+	var body akumu.Problem
+
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("%s: unable to decode", err)
+	}
+
+	t.Logf("%#v", body)
+
+	if body.Status != http.StatusNotImplemented {
+		t.Fatalf(
+			"unexpected body status code: expected %d, got %d",
+			http.StatusNotImplemented,
+			body.Status,
 		)
 	}
 }

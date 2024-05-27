@@ -87,8 +87,8 @@ func (problem *Problem) UnmarshalJSON(data []byte) error {
 		problem.Instance = value
 	}
 
-	if value, ok := mapped["status"].(int); ok {
-		problem.Status = value
+	if value, ok := mapped["status"].(float64); ok {
+		problem.Status = int(value)
 	}
 
 	if value, ok := mapped["title"].(string); ok {
@@ -137,6 +137,7 @@ func (problem Problem) Respond(request *http.Request) Builder {
 		problem.Instance = request.URL.String()
 	}
 
+	fmt.Println("PROB", problem.Status)
 	problem.Title = lowercase(problem.Title)
 	problem.Detail = lowercase(problem.Detail)
 
