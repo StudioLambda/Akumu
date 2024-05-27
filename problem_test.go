@@ -1,11 +1,27 @@
 package akumu_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 
 	"github.com/studiolambda/akumu"
 )
+
+var (
+	ErrNotAuthenticated = akumu.Problem{
+		Type:   "http://example.com/problems/unauthenticated",
+		Title:  "Unauthenticated",
+		Detail: "The supplied credentials are invalid",
+		Status: http.StatusUnauthorized,
+	}
+)
+
+func customProblemHandler(request *http.Request) error {
+	return akumu.Failed(
+		ErrNotAuthenticated.With("username", "foobar"),
+	)
+}
 
 func problemHandler(request *http.Request) error {
 	return akumu.Failed(akumu.Problem{
@@ -28,5 +44,30 @@ func TestProblemHandler(t *testing.T) {
 
 	if response.Code != http.StatusNotFound {
 		t.Fatalf("unexpected status code: %d", response.Code)
+	}
+}
+
+func TestCustomProblemHandler(t *testing.T) {
+	request, err := http.NewRequest("GET", "/", nil)
+	request.Header.Add("Accept", "application/problem+json")
+
+	if err != nil {
+		t.Fatalf("unable to create request: %s", err)
+	}
+
+	response := akumu.Record(customProblemHandler, request)
+
+	data := make(map[string]any)
+
+	if err := json.Unmarshal(response.Body.Bytes(), &data); err != nil {
+		t.Fatalf("unable to deserialize response body: %s", err)
+	}
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("unexpected status code: %d", response.Code)
+	}
+
+	if username, ok := data["username"]; !ok || username != "foobar" {
+		t.Fatalf("unexpected username: %s", username)
 	}
 }

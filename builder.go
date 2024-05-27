@@ -40,7 +40,7 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 		body, err := io.ReadAll(builder.body)
 
 		if err != nil {
-			NewProblem(err, http.StatusInternalServerError).
+			NewProblemFromError(err, http.StatusInternalServerError).
 				Respond(request).
 				Handle(writer, request)
 

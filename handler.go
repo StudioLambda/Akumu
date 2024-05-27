@@ -48,7 +48,7 @@ func handleError(writer http.ResponseWriter, request *http.Request, err error, p
 	}
 
 	if parent != nil {
-		builder := NewProblem(err, http.StatusInternalServerError).
+		builder := NewProblemFromError(err, http.StatusInternalServerError).
 			Respond(request).
 			Status(0)
 
@@ -59,7 +59,7 @@ func handleError(writer http.ResponseWriter, request *http.Request, err error, p
 		return
 	}
 
-	NewProblem(err, http.StatusInternalServerError).
+	NewProblemFromError(err, http.StatusInternalServerError).
 		Respond(request).
 		Handle(writer, request)
 }
