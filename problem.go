@@ -137,7 +137,6 @@ func (problem Problem) Respond(request *http.Request) Builder {
 		problem.Instance = request.URL.String()
 	}
 
-	fmt.Println("PROB", problem.Status)
 	problem.Title = lowercase(problem.Title)
 	problem.Detail = lowercase(problem.Detail)
 
