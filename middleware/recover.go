@@ -8,6 +8,10 @@ import (
 	"github.com/studiolambda/akumu"
 )
 
+var (
+	ErrUnexpected = errors.New("an unexpected error occurred")
+)
+
 func Recover(handler http.Handler) http.Handler {
 	return RecoverWith(handler, func(value any) error {
 		switch err := (value).(type) {
@@ -19,7 +23,7 @@ func Recover(handler http.Handler) http.Handler {
 			return errors.New(err.String())
 		}
 
-		return errors.New("an unexpected error occurred")
+		return ErrUnexpected
 	})
 }
 

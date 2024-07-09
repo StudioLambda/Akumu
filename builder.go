@@ -16,6 +16,7 @@ type Builder struct {
 	body    io.Reader
 	err     error
 	stream  <-chan []byte
+	writer  func(writer http.ResponseWriter)
 }
 
 func writeHeaders(writer http.ResponseWriter, builder Builder) {
@@ -33,6 +34,12 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 		parent := builder.WithoutError()
 		handleError(writer, request, builder.err, &parent)
 
+		return
+	}
+
+	if builder.writer != nil {
+		writeHeaders(writer, builder)
+		builder.writer(writer)
 		return
 	}
 
@@ -182,6 +189,12 @@ func (builder Builder) JSON(body any) Builder {
 	return builder.
 		Header("Content-Type", "application/json").
 		BodyReader(buffer)
+}
+
+func (builder Builder) BodyWriter(writer func(writer http.ResponseWriter)) Builder {
+	builder.writer = writer
+
+	return builder
 }
 
 func (builder Builder) Handler(handler BuilderHandler) Builder {
