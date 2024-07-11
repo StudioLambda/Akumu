@@ -146,13 +146,14 @@ func (problem Problem) Respond(request *http.Request) Builder {
 			Header("Content-Type", "application/problem+json")
 	}
 
-	if strings.Contains(request.Header.Get("Accept"), "text/html") {
-		return Response(problem.Status).
-			HTML(fmt.Sprintf(
-				`<style>.akumu.titlecase{text-transform:capitalize;}.akumu.uppercase-first::first-letter{text-transform:uppercase;}</style><h1 class="akumu titlecase">%s &mdash; %d</h1><h2 class="akumu uppercase-first">%s &mdash; %s</h2><a href=\"%s\">%s</a>`,
-				problem.Title, problem.Status, problem.Detail, problem.Instance, problem.Type, problem.Type,
-			))
-	}
+	// todo: disabled due to improvement schedule
+	// if strings.Contains(request.Header.Get("Accept"), "text/html") {
+	// 	return Response(problem.Status).
+	// 		HTML(fmt.Sprintf(
+	// 			`<style>.akumu.titlecase{text-transform:capitalize;}.akumu.uppercase-first::first-letter{text-transform:uppercase;}</style><h1 class="akumu titlecase">%s &mdash; %d</h1><h2 class="akumu uppercase-first">%s &mdash; %s</h2><a href=\"%s\">%s</a>`,
+	// 			problem.Title, problem.Status, problem.Detail, problem.Instance, problem.Type, problem.Type,
+	// 		))
+	// }
 
 	return Response(problem.Status).
 		Text(fmt.Sprintf("%s\n\n%s", problem.Title, problem.Detail))
