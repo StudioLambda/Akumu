@@ -1,6 +1,7 @@
 package akumu
 
 import (
+	"context"
 	"net/http"
 )
 
@@ -64,7 +65,9 @@ func handleError(writer http.ResponseWriter, request *http.Request, err error, p
 }
 
 func (handler Handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	handleError(writer, request, handler(request), nil)
+	ctx := context.WithValue(context.Background(), ContextKey{}, NewContext())
+
+	handleError(writer, request, handler(request.WithContext(ctx)), nil)
 }
 
 func (handler Handler) HandlerFunc() http.HandlerFunc {

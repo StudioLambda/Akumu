@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"log/slog"
 	"net/http"
 )
 
@@ -42,16 +41,13 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 
 	if builder.writer != nil {
 		if writeHeaders(writer, builder) {
-			logger, ok := request.Context().Value(LoggerKey{}).(*slog.Logger)
-
-			if ok && logger != nil {
-				logger.Error(
-					"detected server error",
-					"code", builder.status,
-					"text", http.StatusText(builder.status),
-					"url", request.URL.String(),
-					"kind", "writer",
-				)
+			if ctx, ok := Context(request); ok {
+				ctx.handleError(ServerError{
+					Code: builder.status,
+					URL:  request.URL.String(),
+					Text: http.StatusText(builder.status),
+					Kind: ServerErrorWriter,
+				})
 			}
 		}
 
@@ -71,17 +67,14 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 		}
 
 		if writeHeaders(writer, builder) {
-			logger, ok := request.Context().Value(LoggerKey{}).(*slog.Logger)
-
-			if ok && logger != nil {
-				logger.Error(
-					"detected server error",
-					"code", builder.status,
-					"text", http.StatusText(builder.status),
-					"url", request.URL.String(),
-					"kind", "body",
-					"body", string(body),
-				)
+			if ctx, ok := Context(request); ok {
+				ctx.handleError(ServerError{
+					Code: builder.status,
+					URL:  request.URL.String(),
+					Text: http.StatusText(builder.status),
+					Kind: ServerErrorBody,
+					Body: string(body),
+				})
 			}
 		}
 
@@ -92,16 +85,13 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 
 	if builder.stream != nil {
 		if writeHeaders(writer, builder) {
-			logger, ok := request.Context().Value(LoggerKey{}).(*slog.Logger)
-
-			if ok && logger != nil {
-				logger.Error(
-					"detected server error",
-					"code", builder.status,
-					"text", http.StatusText(builder.status),
-					"url", request.URL.String(),
-					"kind", "stream",
-				)
+			if ctx, ok := Context(request); ok {
+				ctx.handleError(ServerError{
+					Code: builder.status,
+					URL:  request.URL.String(),
+					Text: http.StatusText(builder.status),
+					Kind: ServerErrorStream,
+				})
 			}
 		}
 
@@ -123,16 +113,13 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 	}
 
 	if writeHeaders(writer, builder) {
-		logger, ok := request.Context().Value(LoggerKey{}).(*slog.Logger)
-
-		if ok && logger != nil {
-			logger.Error(
-				"detected server error",
-				"code", builder.status,
-				"text", http.StatusText(builder.status),
-				"url", request.URL.String(),
-				"kind", "default",
-			)
+		if ctx, ok := Context(request); ok {
+			ctx.handleError(ServerError{
+				Code: builder.status,
+				URL:  request.URL.String(),
+				Text: http.StatusText(builder.status),
+				Kind: ServerErrorDefault,
+			})
 		}
 	}
 }

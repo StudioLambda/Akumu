@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 
@@ -22,8 +21,21 @@ func LoggerDefault() func(http.Handler) http.Handler {
 
 func LoggerWith(handler http.Handler, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		handler.ServeHTTP(writer, request.WithContext(
-			context.WithValue(request.Context(), akumu.LoggerKey{}, logger),
-		))
+		if ctx, ok := akumu.Context(request); ok {
+			ctx.OnError(func(err akumu.ServerError, next akumu.OnErrorNext) {
+				logger.ErrorContext(
+					request.Context(),
+					"server error",
+					"code", err.Code,
+					"text", err.Text,
+					"url", err.URL,
+					"kind", err.Kind,
+				)
+
+				next(err)
+			})
+		}
+
+		handler.ServeHTTP(writer, request)
 	})
 }
