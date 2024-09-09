@@ -65,7 +65,7 @@ func handleError(writer http.ResponseWriter, request *http.Request, err error, p
 }
 
 func (handler Handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	ctx := context.WithValue(context.Background(), ContextKey{}, NewContext())
+	ctx := context.WithValue(request.Context(), ContextKey{}, NewContext())
 
 	handleError(writer, request, handler(request.WithContext(ctx)), nil)
 }
