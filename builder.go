@@ -265,7 +265,11 @@ func (builder Builder) Merge(other Builder) Builder {
 	}
 
 	if other.headers != nil {
-		builder.headers = other.headers
+		for key, values := range other.headers {
+			for _, value := range values {
+				builder.headers.Add(key, value)
+			}
+		}
 	}
 
 	if other.body != nil {

@@ -2,6 +2,7 @@ package akumu
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 )
 
@@ -22,7 +23,9 @@ func handleError(writer http.ResponseWriter, request *http.Request, err error, p
 
 	if builder, ok := err.(Builder); ok {
 		if parent != nil {
-			parent.Merge(builder).Handle(writer, request)
+			parent.
+				Merge(builder).
+				Handle(writer, request)
 
 			return
 		}
@@ -33,6 +36,8 @@ func handleError(writer http.ResponseWriter, request *http.Request, err error, p
 	}
 
 	if responder, ok := err.(Responder); ok {
+		fmt.Printf("Responder: %T\n %#v", responder, parent)
+
 		if parent != nil {
 			parent.
 				Merge(responder.Respond(request)).
