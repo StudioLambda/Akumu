@@ -3,6 +3,7 @@ package akumu
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 )
@@ -19,6 +20,10 @@ type Builder struct {
 	writer  func(writer http.ResponseWriter)
 }
 
+var (
+	ErrWriterRequiresFlusher = errors.New("response writer requires a flusher")
+)
+
 func writeHeaders(writer http.ResponseWriter, builder Builder) bool {
 	for key, values := range builder.headers {
 		for _, value := range values {
@@ -32,17 +37,19 @@ func writeHeaders(writer http.ResponseWriter, builder Builder) bool {
 }
 
 func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, builder Builder) {
+	onError, hasOnError := request.Context().Value(OnErrorKey{}).(OnErrorHook)
+
 	if builder.err != nil {
 		parent := builder.WithoutError()
-		handleError(writer, request, builder.err, &parent)
+		handle(writer, request, builder.err, &parent)
 
 		return
 	}
 
 	if builder.writer != nil {
 		if writeHeaders(writer, builder) {
-			if ctx, ok := Context(request); ok {
-				ctx.handleError(ServerError{
+			if hasOnError {
+				onError(ServerError{
 					Code: builder.status,
 					URL:  request.URL.String(),
 					Text: http.StatusText(builder.status),
@@ -59,7 +66,7 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 		body, err := io.ReadAll(builder.body)
 
 		if err != nil {
-			NewProblemFromError(err, http.StatusInternalServerError).
+			NewProblem(err, http.StatusInternalServerError).
 				Respond(request).
 				Handle(writer, request)
 
@@ -67,8 +74,8 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 		}
 
 		if writeHeaders(writer, builder) {
-			if ctx, ok := Context(request); ok {
-				ctx.handleError(ServerError{
+			if hasOnError {
+				onError(ServerError{
 					Code: builder.status,
 					URL:  request.URL.String(),
 					Text: http.StatusText(builder.status),
@@ -84,9 +91,19 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 	}
 
 	if builder.stream != nil {
+		flusher, ok := writer.(http.Flusher)
+
+		if !ok {
+			NewProblem(ErrWriterRequiresFlusher, http.StatusInternalServerError).
+				Respond(request).
+				Handle(writer, request)
+
+			return
+		}
+
 		if writeHeaders(writer, builder) {
-			if ctx, ok := Context(request); ok {
-				ctx.handleError(ServerError{
+			if hasOnError {
+				onError(ServerError{
 					Code: builder.status,
 					URL:  request.URL.String(),
 					Text: http.StatusText(builder.status),
@@ -95,7 +112,7 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 			}
 		}
 
-		writer.(http.Flusher).Flush()
+		flusher.Flush()
 
 		for {
 			select {
@@ -106,15 +123,16 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 					return
 				}
 
-				writer.Write(message)
-				writer.(http.Flusher).Flush()
+				_, _ = writer.Write(message)
+
+				flusher.Flush()
 			}
 		}
 	}
 
 	if writeHeaders(writer, builder) {
-		if ctx, ok := Context(request); ok {
-			ctx.handleError(ServerError{
+		if hasOnError {
+			onError(ServerError{
 				Code: builder.status,
 				URL:  request.URL.String(),
 				Text: http.StatusText(builder.status),

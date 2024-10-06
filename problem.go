@@ -6,11 +6,10 @@ import (
 	"maps"
 	"net/http"
 	"strings"
-	"unicode"
 )
 
 // Problem represents a problem details for HTTP APIs.
-// See https://tools.ietf.org/html/rfc7807 for more information.
+// See https://datatracker.ietf.org/doc/html/rfc9457 for more information.
 type Problem struct {
 	additional map[string]any
 	Type       string
@@ -20,7 +19,63 @@ type Problem struct {
 	Instance   string
 }
 
-func NewProblemFromError(err error, status int) Problem {
+type ProblemControlsResolver[R any] func(problem Problem, request *http.Request) R
+
+type ProblemControls struct {
+	Lowercase       ProblemControlsResolver[bool]
+	DefaultStatus   ProblemControlsResolver[int]
+	DefaultType     ProblemControlsResolver[string]
+	DefaultTitle    ProblemControlsResolver[string]
+	DefaultInstance ProblemControlsResolver[string]
+}
+
+// ProblemsKey is the context key where the
+// problem controls are stored in the request.
+type ProblemsKey struct{}
+
+// Problems return the [ProblemControls] used to determine
+// how [Problem] respond to http requests.
+func Problems(request *http.Request) (ProblemControls, bool) {
+	controls, ok := request.
+		Context().
+		Value(ProblemsKey{}).(ProblemControls)
+
+	return controls, ok
+}
+
+func defaultProblemControllerLowercase(problem Problem, request *http.Request) bool {
+	return true
+}
+
+func defaultProblemControllerStatus(problem Problem, request *http.Request) int {
+	return http.StatusInternalServerError
+}
+
+func defaultProblemControllerType(problem Problem, request *http.Request) string {
+	return "about:blank"
+}
+
+func defaultProblemControllerTitle(problem Problem, request *http.Request) string {
+	return http.StatusText(problem.Status)
+}
+
+func defaultProblemControllerInstance(problem Problem, request *http.Request) string {
+	return request.URL.String()
+}
+
+func NewProblemControls() ProblemControls {
+	return ProblemControls{
+		Lowercase:       defaultProblemControllerLowercase,
+		DefaultStatus:   defaultProblemControllerStatus,
+		DefaultType:     defaultProblemControllerType,
+		DefaultTitle:    defaultProblemControllerTitle,
+		DefaultInstance: defaultProblemControllerInstance,
+	}
+}
+
+// NewProblem creates a new [Problem] from
+// the given error and status code.
+func NewProblem(err error, status int) Problem {
 	return Problem{
 		additional: make(map[string]any),
 		Detail:     err.Error(),
@@ -28,6 +83,17 @@ func NewProblemFromError(err error, status int) Problem {
 	}
 }
 
+// Additional returns the additional value of the given key.
+//
+// Use [Problem.With] to add additional values.
+// Use [Problem.Without] to remove additional values.
+func (problem Problem) Additional(key string) (any, bool) {
+	additional, ok := problem.additional[key]
+
+	return additional, ok
+}
+
+// With adds a new additional value to the given key.
 func (problem Problem) With(key string, value any) Problem {
 	if problem.additional == nil {
 		problem.additional = map[string]any{key: value}
@@ -41,6 +107,7 @@ func (problem Problem) With(key string, value any) Problem {
 	return problem
 }
 
+// Without removes an additional value to the given key.
 func (problem Problem) Without(key string) Problem {
 	if problem.additional == nil {
 		return problem
@@ -52,10 +119,12 @@ func (problem Problem) Without(key string) Problem {
 	return problem
 }
 
+// Error is the error-like string representation of a [Problem].
 func (problem Problem) Error() string {
 	return problem.Title
 }
 
+// MarshalJSON replaces the default JSON encoding behaviour.
 func (problem Problem) MarshalJSON() ([]byte, error) {
 	mapped := make(map[string]any, len(problem.additional)+5)
 
@@ -72,6 +141,7 @@ func (problem Problem) MarshalJSON() ([]byte, error) {
 	return json.Marshal(mapped)
 }
 
+// UnmarshalJSON replaces the default JSON decoding behaviour.
 func (problem *Problem) UnmarshalJSON(data []byte) error {
 	mapped := make(map[string]any)
 
@@ -110,35 +180,45 @@ func (problem *Problem) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (problem Problem) Respond(request *http.Request) Builder {
-	lowercase := func(str string) string {
-		result := ""
-
-		for _, r := range str {
-			result += string(unicode.ToLower(r))
-		}
-
-		return result
+func (problem Problem) controls(request *http.Request) ProblemControls {
+	if controls, ok := Problems(request); ok {
+		return controls
 	}
 
+	return NewProblemControls()
+}
+
+func (problem Problem) defaulted(request *http.Request) Problem {
+	controls := problem.controls(request)
+
 	if problem.Type == "" {
-		problem.Type = "about:blank"
+		problem.Type = controls.DefaultType(problem, request)
 	}
 
 	if problem.Status == 0 {
-		problem.Status = http.StatusInternalServerError
+		problem.Status = controls.DefaultStatus(problem, request)
 	}
 
 	if problem.Title == "" {
-		problem.Title = http.StatusText(problem.Status)
+		problem.Title = controls.DefaultTitle(problem, request)
 	}
 
 	if problem.Instance == "" {
-		problem.Instance = request.URL.String()
+		problem.Instance = controls.DefaultInstance(problem, request)
 	}
 
-	problem.Title = lowercase(problem.Title)
-	problem.Detail = lowercase(problem.Detail)
+	if controls.Lowercase(problem, request) {
+		problem.Title = lowercase(problem.Title)
+		problem.Detail = lowercase(problem.Detail)
+	}
+
+	return problem
+}
+
+// Respond implements [Responder] interface to implement
+// how a problem responds to an http request.
+func (problem Problem) Respond(request *http.Request) Builder {
+	problem = problem.defaulted(request)
 
 	if strings.Contains(request.Header.Get("Accept"), "application/problem+json") || strings.Contains(request.Header.Get("Accept"), "application/json") {
 		return Response(problem.Status).

@@ -1,57 +1,48 @@
 package akumu
 
 import (
-	"context"
 	"net/http"
 )
 
 type Handler func(*http.Request) error
 
-func handleError(writer http.ResponseWriter, request *http.Request, err error, parent *Builder) {
-	if err == nil {
-		if parent != nil {
-			parent.Handle(writer, request)
-
-			return
-		}
-
-		Response(http.StatusOK).Handle(writer, request)
-
-		return
-	}
-
-	if builder, ok := err.(Builder); ok {
-		if parent != nil {
-			parent.
-				Merge(builder).
-				Handle(writer, request)
-
-			return
-		}
-
-		builder.Handle(writer, request)
-
-		return
-	}
-
-	if responder, ok := err.(Responder); ok {
-		if parent != nil {
-			parent.
-				Merge(responder.Respond(request)).
-				Handle(writer, request)
-
-			return
-		}
-
-		responder.
-			Respond(request).
+func handleResponder(writer http.ResponseWriter, request *http.Request, parent *Builder, responder Responder) {
+	if parent != nil {
+		parent.
+			Merge(responder.Respond(request)).
 			Handle(writer, request)
 
 		return
 	}
 
+	responder.
+		Respond(request).
+		Handle(writer, request)
+}
+
+func handleNoError(writer http.ResponseWriter, request *http.Request, parent *Builder) {
 	if parent != nil {
-		builder := NewProblemFromError(err, parent.status).
+		parent.Handle(writer, request)
+
+		return
+	}
+
+	Response(http.StatusOK).Handle(writer, request)
+}
+
+func handle(writer http.ResponseWriter, request *http.Request, err error, parent *Builder) {
+	if err == nil {
+		handleNoError(writer, request, parent)
+		return
+	}
+
+	if responder, ok := err.(Responder); ok {
+		handleResponder(writer, request, parent, responder)
+		return
+	}
+
+	if parent != nil {
+		builder := NewProblem(err, parent.status).
 			Respond(request)
 
 		parent.
@@ -61,15 +52,13 @@ func handleError(writer http.ResponseWriter, request *http.Request, err error, p
 		return
 	}
 
-	NewProblemFromError(err, http.StatusInternalServerError).
+	NewProblem(err, http.StatusInternalServerError).
 		Respond(request).
 		Handle(writer, request)
 }
 
 func (handler Handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	ctx := context.WithValue(request.Context(), ContextKey{}, NewContext())
-
-	handleError(writer, request, handler(request.WithContext(ctx)), nil)
+	handle(writer, request, handler(request), nil)
 }
 
 func (handler Handler) HandlerFunc() http.HandlerFunc {

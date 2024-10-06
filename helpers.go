@@ -2,13 +2,13 @@ package akumu
 
 import (
 	"encoding/json"
-	"io"
+	"net/http"
 )
 
-func JSON[T any](reader io.Reader) (T, error) {
+func JSON[T any](request *http.Request) (T, error) {
 	result := *new(T)
 
-	decoder := json.NewDecoder(reader)
+	decoder := json.NewDecoder(request.Body)
 	decoder.DisallowUnknownFields()
 
 	if err := decoder.Decode(&result); err != nil {

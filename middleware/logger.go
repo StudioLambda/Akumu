@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 
@@ -21,8 +22,14 @@ func LoggerDefault() func(http.Handler) http.Handler {
 
 func LoggerWith(handler http.Handler, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if ctx, ok := akumu.Context(request); ok {
-			ctx.OnError(func(err akumu.ServerError, next akumu.OnErrorNext) {
+		parent, hasParent := request.Context().Value(akumu.OnErrorKey{}).(akumu.OnErrorHook)
+
+		handler.ServeHTTP(writer, request.WithContext(
+			context.WithValue(request.Context(), akumu.OnErrorKey{}, func(err akumu.ServerError) {
+				if hasParent && parent != nil {
+					parent(err)
+				}
+
 				logger.ErrorContext(
 					request.Context(),
 					"server error",
@@ -31,11 +38,7 @@ func LoggerWith(handler http.Handler, logger *slog.Logger) http.Handler {
 					"url", err.URL,
 					"kind", err.Kind,
 				)
-
-				next(err)
-			})
-		}
-
-		handler.ServeHTTP(writer, request)
+			}),
+		))
 	})
 }
