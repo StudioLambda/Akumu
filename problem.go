@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
-	"strings"
+
+	"github.com/studiolambda/akumu/utils"
 )
 
 // Problem represents a problem details for HTTP APIs.
@@ -27,11 +28,23 @@ type ProblemControls struct {
 	DefaultType     ProblemControlsResolver[string]
 	DefaultTitle    ProblemControlsResolver[string]
 	DefaultInstance ProblemControlsResolver[string]
+	Response        ProblemControlsResolver[Builder]
 }
 
 // ProblemsKey is the context key where the
 // problem controls are stored in the request.
 type ProblemsKey struct{}
+
+func defaultProblemControls() ProblemControls {
+	return ProblemControls{
+		Lowercase:       defaultProblemControlsLowercase,
+		DefaultStatus:   defaultProblemControlsStatus,
+		DefaultType:     defaultProblemControlsType,
+		DefaultTitle:    defaultProblemControlsTitle,
+		DefaultInstance: defaultProblemControlsInstance,
+		Response:        defaultProblemControlsResponse,
+	}
+}
 
 // Problems return the [ProblemControls] used to determine
 // how [Problem] respond to http requests.
@@ -43,34 +56,51 @@ func Problems(request *http.Request) (ProblemControls, bool) {
 	return controls, ok
 }
 
-func defaultProblemControllerLowercase(problem Problem, request *http.Request) bool {
+func defaultProblemControlsLowercase(problem Problem, request *http.Request) bool {
 	return true
 }
 
-func defaultProblemControllerStatus(problem Problem, request *http.Request) int {
+func defaultProblemControlsStatus(problem Problem, request *http.Request) int {
 	return http.StatusInternalServerError
 }
 
-func defaultProblemControllerType(problem Problem, request *http.Request) string {
+func defaultProblemControlsType(problem Problem, request *http.Request) string {
 	return "about:blank"
 }
 
-func defaultProblemControllerTitle(problem Problem, request *http.Request) string {
+func defaultProblemControlsTitle(problem Problem, request *http.Request) string {
 	return http.StatusText(problem.Status)
 }
 
-func defaultProblemControllerInstance(problem Problem, request *http.Request) string {
+func defaultProblemControlsInstance(problem Problem, request *http.Request) string {
 	return request.URL.String()
 }
 
-func NewProblemControls() ProblemControls {
-	return ProblemControls{
-		Lowercase:       defaultProblemControllerLowercase,
-		DefaultStatus:   defaultProblemControllerStatus,
-		DefaultType:     defaultProblemControllerType,
-		DefaultTitle:    defaultProblemControllerTitle,
-		DefaultInstance: defaultProblemControllerInstance,
+func defaultProblemControlsResponse(problem Problem, request *http.Request) Builder {
+	responses := map[string]Builder{
+		"application/problem+json": Response(problem.Status).
+			JSON(problem).
+			Header("Content-Type", "application/problem+json"),
+		"application/json": Response(problem.Status).
+			JSON(problem).
+			Header("Content-Type", "application/problem+json"),
+		"text/html": Response(problem.Status).
+			HTML(fmt.Sprintf(
+				`<style>.akumu.titlecase{text-transform:capitalize;}.akumu.uppercase-first::first-letter{text-transform:uppercase;}</style><h1 class="akumu titlecase">%s &mdash; %d</h1><h2 class="akumu uppercase-first">%s &mdash; %s</h2><a href=\"%s\">%s</a>`,
+				problem.Title, problem.Status, problem.Detail, problem.Instance, problem.Type, problem.Type,
+			)),
 	}
+
+	accept := utils.ParseAccept(request)
+
+	for _, media := range accept.Order() {
+		if response, ok := responses[media]; ok {
+			return response
+		}
+	}
+
+	return Response(problem.Status).
+		Text(fmt.Sprintf("%s\n\n%s", problem.Title, problem.Detail))
 }
 
 // NewProblem creates a new [Problem] from
@@ -185,7 +215,7 @@ func (problem Problem) controls(request *http.Request) ProblemControls {
 		return controls
 	}
 
-	return NewProblemControls()
+	return defaultProblemControls()
 }
 
 func (problem Problem) defaulted(request *http.Request) Problem {
@@ -218,23 +248,7 @@ func (problem Problem) defaulted(request *http.Request) Problem {
 // Respond implements [Responder] interface to implement
 // how a problem responds to an http request.
 func (problem Problem) Respond(request *http.Request) Builder {
-	problem = problem.defaulted(request)
+	controls := problem.controls(request)
 
-	if strings.Contains(request.Header.Get("Accept"), "application/problem+json") || strings.Contains(request.Header.Get("Accept"), "application/json") {
-		return Response(problem.Status).
-			JSON(problem).
-			Header("Content-Type", "application/problem+json")
-	}
-
-	// todo: disabled due to improvement schedule
-	// if strings.Contains(request.Header.Get("Accept"), "text/html") {
-	// 	return Response(problem.Status).
-	// 		HTML(fmt.Sprintf(
-	// 			`<style>.akumu.titlecase{text-transform:capitalize;}.akumu.uppercase-first::first-letter{text-transform:uppercase;}</style><h1 class="akumu titlecase">%s &mdash; %d</h1><h2 class="akumu uppercase-first">%s &mdash; %s</h2><a href=\"%s\">%s</a>`,
-	// 			problem.Title, problem.Status, problem.Detail, problem.Instance, problem.Type, problem.Type,
-	// 		))
-	// }
-
-	return Response(problem.Status).
-		Text(fmt.Sprintf("%s\n\n%s", problem.Title, problem.Detail))
+	return controls.Response(problem.defaulted(request), request)
 }
