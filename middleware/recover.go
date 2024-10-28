@@ -12,19 +12,21 @@ var (
 	ErrUnexpected = errors.New("an unexpected error occurred")
 )
 
-func Recover(handler http.Handler) http.Handler {
-	return RecoverWith(handler, func(value any) error {
-		switch err := (value).(type) {
-		case error:
-			return err
-		case string:
-			return errors.New(err)
-		case fmt.Stringer:
-			return errors.New(err.String())
-		}
+func Recover() akumu.Middleware {
+	return func(handler http.Handler) http.Handler {
+		return RecoverWith(handler, func(value any) error {
+			switch err := (value).(type) {
+			case error:
+				return err
+			case string:
+				return errors.New(err)
+			case fmt.Stringer:
+				return errors.New(err.String())
+			}
 
-		return ErrUnexpected
-	})
+			return ErrUnexpected
+		})
+	}
 }
 
 func RecoverWith(handler http.Handler, handle func(value any) error) http.Handler {

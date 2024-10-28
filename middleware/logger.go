@@ -8,13 +8,13 @@ import (
 	"github.com/studiolambda/akumu"
 )
 
-func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
+func Logger(logger *slog.Logger) akumu.Middleware {
 	return func(handler http.Handler) http.Handler {
 		return LoggerWith(handler, logger)
 	}
 }
 
-func LoggerDefault() func(http.Handler) http.Handler {
+func LoggerDefault() akumu.Middleware {
 	return func(handler http.Handler) http.Handler {
 		return LoggerWith(handler, slog.Default())
 	}
