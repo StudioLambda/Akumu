@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"path"
 	"slices"
+	"strings"
 )
 
 type Router struct {
@@ -63,6 +64,12 @@ func (router *Router) Use(middlewares ...Middleware) {
 }
 
 func (router *Router) Method(method string, pattern string, handler Handler) {
+	pattern = path.Join(router.pattern, pattern)
+
+	if !strings.HasSuffix(pattern, "/") {
+		pattern += "/"
+	}
+
 	router.
 		mux().
 		Handle(fmt.Sprintf("%s %s{$}", method, pattern), router.wrap(handler))
