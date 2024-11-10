@@ -116,17 +116,11 @@ func TestHandler3(t *testing.T) {
 		)
 	}
 
-	// v, _ := io.ReadAll(response.Body)
-	// t.Logf("V: %s", string(v))
-	// t.FailNow()
-
 	var body akumu.Problem
 
 	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
 		t.Fatalf("%s: unable to decode", err)
 	}
-
-	t.Logf("%#v", body)
 
 	if body.Status != http.StatusNotImplemented {
 		t.Fatalf(
