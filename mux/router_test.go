@@ -1,15 +1,15 @@
-package router_test
+package mux_test
 
 import (
 	"net/http"
 	"testing"
 
 	"github.com/studiolambda/akumu"
-	"github.com/studiolambda/akumu/router"
+	"github.com/studiolambda/akumu/mux"
 )
 
 func TestRouterHas(t *testing.T) {
-	router := router.NewRouter()
+	router := mux.NewRouter()
 
 	router.Get("/", func(request *http.Request) error {
 		return akumu.Response(http.StatusOK)
@@ -29,7 +29,7 @@ func TestRouterHas(t *testing.T) {
 }
 
 func TestRouterMatches(t *testing.T) {
-	router := router.NewRouter()
+	router := mux.NewRouter()
 
 	router.Get("/", func(request *http.Request) error {
 		return akumu.Response(http.StatusOK)
@@ -47,7 +47,7 @@ func TestRouterMatches(t *testing.T) {
 }
 
 func TestRouterHandler(t *testing.T) {
-	router := router.NewRouter()
+	router := mux.NewRouter()
 
 	router.Get("/", func(request *http.Request) error {
 		return akumu.Response(http.StatusOK)
