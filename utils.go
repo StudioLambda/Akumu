@@ -3,11 +3,11 @@ package akumu
 import "unicode"
 
 func lowercase(str string) string {
-	result := ""
+	result := make([]byte, len(str))
 
-	for _, r := range str {
-		result += string(unicode.ToLower(r))
+	for i, r := range str {
+		result[i] += byte(unicode.ToLower(r))
 	}
 
-	return result
+	return string(result)
 }
