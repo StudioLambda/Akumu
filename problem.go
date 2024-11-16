@@ -76,6 +76,21 @@ func defaultProblemControlsInstance(problem Problem, request *http.Request) stri
 	return request.URL.String()
 }
 
+func ProblemControlsResponseFrom(responses map[string]Builder) ProblemControlsResolver[Builder] {
+	return func(problem Problem, request *http.Request) Builder {
+		accept := utils.ParseAccept(request)
+
+		for _, media := range accept.Order() {
+			if response, ok := responses[media]; ok {
+				return response
+			}
+		}
+
+		return Response(problem.Status).
+			Text(fmt.Sprintf("%s\n\n%s", problem.Title, problem.Detail))
+	}
+}
+
 func defaultProblemControlsResponse(problem Problem, request *http.Request) Builder {
 	responses := map[string]Builder{
 		"application/problem+json": Response(problem.Status).
@@ -91,16 +106,7 @@ func defaultProblemControlsResponse(problem Problem, request *http.Request) Buil
 			)),
 	}
 
-	accept := utils.ParseAccept(request)
-
-	for _, media := range accept.Order() {
-		if response, ok := responses[media]; ok {
-			return response
-		}
-	}
-
-	return Response(problem.Status).
-		Text(fmt.Sprintf("%s\n\n%s", problem.Title, problem.Detail))
+	return ProblemControlsResponseFrom(responses)(problem, request)
 }
 
 // NewProblem creates a new [Problem] from
