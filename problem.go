@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"maps"
 	"net/http"
 
@@ -36,11 +35,6 @@ type ProblemControls struct {
 // ProblemsKey is the context key where the
 // problem controls are stored in the request.
 type ProblemsKey struct{}
-
-//go:embed problem.html
-var ProblemTemplateHTML string
-
-var ProblemTemplate = template.Must(template.New("problem.html").Parse(ProblemTemplateHTML))
 
 func defaultedProblemControls(controls ProblemControls) ProblemControls {
 
