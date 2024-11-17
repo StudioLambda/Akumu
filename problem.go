@@ -1,8 +1,10 @@
 package akumu
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"maps"
 	"net/http"
 
@@ -35,15 +37,38 @@ type ProblemControls struct {
 // problem controls are stored in the request.
 type ProblemsKey struct{}
 
-func defaultProblemControls() ProblemControls {
-	return ProblemControls{
-		Lowercase:       defaultProblemControlsLowercase,
-		DefaultStatus:   defaultProblemControlsStatus,
-		DefaultType:     defaultProblemControlsType,
-		DefaultTitle:    defaultProblemControlsTitle,
-		DefaultInstance: defaultProblemControlsInstance,
-		Response:        defaultProblemControlsResponse,
+//go:embed problem.html
+var ProblemTemplateHTML string
+
+var ProblemTemplate = template.Must(template.New("problem.html").Parse(ProblemTemplateHTML))
+
+func defaultedProblemControls(controls ProblemControls) ProblemControls {
+
+	if controls.Lowercase == nil {
+		controls.Lowercase = defaultProblemControlsLowercase
 	}
+
+	if controls.DefaultStatus == nil {
+		controls.DefaultStatus = defaultProblemControlsStatus
+	}
+
+	if controls.DefaultType == nil {
+		controls.DefaultType = defaultProblemControlsType
+	}
+
+	if controls.DefaultTitle == nil {
+		controls.DefaultTitle = defaultProblemControlsTitle
+	}
+
+	if controls.DefaultInstance == nil {
+		controls.DefaultInstance = defaultProblemControlsInstance
+	}
+
+	if controls.Response == nil {
+		controls.Response = defaultProblemControlsResponse
+	}
+
+	return controls
 }
 
 // Problems return the [ProblemControls] used to determine
@@ -87,7 +112,7 @@ func ProblemControlsResponseFrom(responses map[string]Builder) ProblemControlsRe
 		}
 
 		return Response(problem.Status).
-			Text(fmt.Sprintf("%s\n\n%s", problem.Title, problem.Detail))
+			Text(fmt.Sprintf("%d %s\n\n%s", problem.Status, problem.Title, problem.Detail))
 	}
 }
 
@@ -99,11 +124,6 @@ func defaultProblemControlsResponse(problem Problem, request *http.Request) Buil
 		"application/json": Response(problem.Status).
 			JSON(problem).
 			Header("Content-Type", "application/problem+json"),
-		"text/html": Response(problem.Status).
-			HTML(fmt.Sprintf(
-				`<style>.akumu.titlecase{text-transform:capitalize;}.akumu.uppercase-first::first-letter{text-transform:uppercase;}</style><h1 class="akumu titlecase">%s &mdash; %d</h1><h2 class="akumu uppercase-first">%s &mdash; %s</h2><a href=\"%s\">%s</a>`,
-				problem.Title, problem.Status, problem.Detail, problem.Instance, problem.Type, problem.Type,
-			)),
 	}
 
 	return ProblemControlsResponseFrom(responses)(problem, request)
@@ -217,11 +237,13 @@ func (problem *Problem) UnmarshalJSON(data []byte) error {
 }
 
 func (problem Problem) controls(request *http.Request) ProblemControls {
-	if controls, ok := Problems(request); ok {
-		return controls
+	controls := ProblemControls{}
+
+	if c, ok := Problems(request); ok {
+		controls = c
 	}
 
-	return defaultProblemControls()
+	return defaultedProblemControls(controls)
 }
 
 func (problem Problem) defaulted(request *http.Request) Problem {
