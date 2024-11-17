@@ -2,6 +2,7 @@ package akumu_test
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"testing"
 
@@ -94,5 +95,24 @@ func TestCustomProblemHandler(t *testing.T) {
 
 	if username, ok := data["username"]; !ok || username != "foobar" {
 		t.Fatalf("unexpected username: %s", username)
+	}
+}
+
+func TestProblemErrorUnwraps(t *testing.T) {
+	someErr := errors.New("some error")
+	someOtherErr := errors.New("some other error")
+	err := errors.Join(someErr, someOtherErr)
+	problem := akumu.NewProblem(err, http.StatusBadRequest)
+
+	if !errors.Is(problem, err) {
+		t.Fatalf("%s should be %s", problem, err)
+	}
+
+	if !errors.Is(problem, someErr) {
+		t.Fatalf("%s should be %s", problem, err)
+	}
+
+	if !errors.Is(problem, someOtherErr) {
+		t.Fatalf("%s should be %s", problem, err)
 	}
 }
