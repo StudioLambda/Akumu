@@ -13,12 +13,25 @@ import (
 // Problem represents a problem details for HTTP APIs.
 // See https://datatracker.ietf.org/doc/html/rfc9457 for more information.
 type Problem struct {
+
+	// err stores the native error of the problem if
+	// it happens to have one. This struct member can be
+	// nil if the problem was created manually.
+	//
+	// Refer to [NewProblem] to automatically assign an error
+	// to the new Problem.
+	err error
+
+	// additional stores additional metadata that will be
+	// appended to the problem JSON representation. It is used
+	// to serialize and de-serialize properties.
 	additional map[string]any
-	Type       string
-	Title      string
-	Detail     string
-	Status     int
-	Instance   string
+
+	Type     string
+	Title    string
+	Detail   string
+	Status   int
+	Instance string
 }
 
 type ProblemControlsResolver[R any] func(problem Problem, request *http.Request) R
@@ -37,7 +50,6 @@ type ProblemControls struct {
 type ProblemsKey struct{}
 
 func defaultedProblemControls(controls ProblemControls) ProblemControls {
-
 	if controls.Lowercase == nil {
 		controls.Lowercase = defaultProblemControlsLowercase
 	}
@@ -127,6 +139,7 @@ func defaultProblemControlsResponse(problem Problem, request *http.Request) Buil
 // the given error and status code.
 func NewProblem(err error, status int) Problem {
 	return Problem{
+		err:        err,
 		additional: make(map[string]any),
 		Detail:     err.Error(),
 		Status:     status,
@@ -171,7 +184,15 @@ func (problem Problem) Without(key string) Problem {
 
 // Error is the error-like string representation of a [Problem].
 func (problem Problem) Error() string {
+	if problem.err != nil {
+		return fmt.Sprintf("%d %s: %s", problem.Status, http.StatusText(problem.Status), problem.err)
+	}
+
 	return problem.Title
+}
+
+func (problem Problem) Unwrap() error {
+	return problem.err
 }
 
 // MarshalJSON replaces the default JSON encoding behaviour.
