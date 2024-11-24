@@ -107,12 +107,29 @@ type Problem struct {
 type ProblemControlsResolver[R any] func(problem Problem, request *http.Request) R
 
 type ProblemControls struct {
-	Lowercase       ProblemControlsResolver[bool]
-	DefaultStatus   ProblemControlsResolver[int]
-	DefaultType     ProblemControlsResolver[string]
-	DefaultTitle    ProblemControlsResolver[string]
+	// Lowercase determines if the problem controls
+	// should lowercase the errors found.
+	Lowercase ProblemControlsResolver[bool]
+
+	// DefaultStatus determines the default status code of a [Problem]
+	// in case it does not have one defined.
+	DefaultStatus ProblemControlsResolver[int]
+
+	// DefaultType determines the default type of a [Problem]
+	// in case it does not have one defined.
+	DefaultType ProblemControlsResolver[string]
+
+	// DefaultTitle determines the default title of a [Problem]
+	// in case it does not have one defined.
+	DefaultTitle ProblemControlsResolver[string]
+
+	// DefaultInstance determines the default instance of a [Problem]
+	// in case it does not have one defined.
 	DefaultInstance ProblemControlsResolver[string]
-	Response        ProblemControlsResolver[Builder]
+
+	// Response allows customizing the actual Builder response
+	// that a [Problem] should be resolved to.
+	Response ProblemControlsResolver[Builder]
 }
 
 // ProblemsKey is the context key where the
