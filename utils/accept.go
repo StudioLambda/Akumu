@@ -3,20 +3,26 @@ package utils
 import (
 	"mime"
 	"net/http"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
 
+// acceptPair is a simple structure that
+// holds the media and quality of an accept value.
 type acceptPair struct {
 	media   string
 	quality float64
 }
 
+// Accept is a type designed to help working
+// with header values found in the "Accept" header.
 type Accept struct {
 	values []acceptPair
 }
 
+// ParseAccept creates a new [Accept] based on a
+// [http.Request] by parsing its headers.
 func ParseAccept(request *http.Request) Accept {
 	accept := Accept{
 		values: make([]acceptPair, 0),
@@ -48,6 +54,10 @@ func ParseAccept(request *http.Request) Accept {
 	return accept
 }
 
+// find looks for a given media in the accept header and
+// returns its [acceptPair] if found.
+//
+// The second return value is true when is found, and false otherwise.
 func (accept Accept) find(media string) (acceptPair, bool) {
 	for _, pair := range accept.values {
 		if media == pair.media {
@@ -74,12 +84,18 @@ func (accept Accept) find(media string) (acceptPair, bool) {
 	return acceptPair{}, false
 }
 
+// Accepts reports whether the given media
+// is found in the accept headers.
 func (accept Accept) Accepts(media string) bool {
 	_, found := accept.find(media)
 
 	return found
 }
 
+// Quality returns the quality of the given media
+// found in the accept headers.
+//
+// Returns 0 if not found.
 func (accept Accept) Quality(media string) float64 {
 	if pair, found := accept.find(media); found {
 		return pair.quality
@@ -88,16 +104,28 @@ func (accept Accept) Quality(media string) float64 {
 	return 0
 }
 
+// Order creates an ordered slice that contains the
+// actual acceptance order based on the accept quality.
 func (accept Accept) Order() []string {
+	values := slices.Clone(accept.values)
+
+	slices.SortFunc(values, func(a, b acceptPair) int {
+		if a.quality > b.quality {
+			return -1
+		}
+
+		if a.quality < b.quality {
+			return 1
+		}
+
+		return 0
+	})
+
 	keys := make([]string, len(accept.values))
 
-	for i, pair := range accept.values {
+	for i, pair := range values {
 		keys[i] = pair.media
 	}
-
-	sort.SliceStable(keys, func(i, j int) bool {
-		return accept.values[i].quality > accept.values[j].quality
-	})
 
 	return keys
 }
