@@ -35,7 +35,7 @@ go get github.com/studiolambda/akumu
 ## Documentation
 
 Akumu's source code is very well documented and godoc makes it a joy to look and understand
-that documentation. Please refer to the official [API documentation]() to learn more.
+that documentation. Please refer to the official [API documentation](https://pkg.go.dev/github.com/studiolambda/akumu) to learn more.
 
 ## Example
 
