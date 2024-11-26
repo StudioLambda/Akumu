@@ -109,8 +109,8 @@ func (router *Router) mux() *http.ServeMux {
 // the same as first calling the router middlewares and then the
 // provided [http.Handler].
 func (router *Router) wrap(handler http.Handler) http.Handler {
-	for _, middleware := range router.middlewares {
-		handler = middleware(handler)
+	for i := len(router.middlewares) - 1; i >= 0; i-- {
+		handler = router.middlewares[i](handler)
 	}
 
 	return handler

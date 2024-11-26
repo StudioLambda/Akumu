@@ -104,6 +104,8 @@ type Problem struct {
 	Instance string
 }
 
+// ProblemControlsResolver is a func that resolves to a response T given
+// a [Problem] and a [http.Request].
 type ProblemControlsResolver[R any] func(problem Problem, request *http.Request) R
 
 type ProblemControls struct {
