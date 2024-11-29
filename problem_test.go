@@ -3,6 +3,7 @@ package akumu_test
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -16,7 +17,22 @@ var (
 		Detail: "The supplied credentials are invalid",
 		Status: http.StatusUnauthorized,
 	}
+	ErrSomethingBad = errors.Join(
+		errors.New("first error"),
+		errors.Join(errors.New("second error"), errors.New("third error")),
+		fmt.Errorf("%w: failed", errors.New("last error")),
+	)
 )
+
+func customProblemHandlerDirectErr(request *http.Request) error {
+	return akumu.Failed(ErrSomethingBad)
+}
+
+func customProblemHandlerWithErr(request *http.Request) error {
+	return akumu.Failed(
+		ErrNotAuthenticated.WithError(ErrSomethingBad),
+	)
+}
 
 func customProblemHandler(request *http.Request) error {
 	return akumu.Failed(
@@ -42,12 +58,12 @@ func problemHandler(request *http.Request) error {
 
 func TestItHandlesErrorsWithHeaders(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
-	request.Header.Add("Accept", "application/problem+json")
 
 	if err != nil {
 		t.Fatalf("unable to create request: %s", err)
 	}
 
+	request.Header.Add("Accept", "application/problem+json")
 	response := akumu.Record(customProblemHandler2, request)
 
 	if response.Code != ErrNotAuthenticated.Status {
@@ -75,12 +91,12 @@ func TestProblemHandler(t *testing.T) {
 
 func TestCustomProblemHandler(t *testing.T) {
 	request, err := http.NewRequest("GET", "/", nil)
-	request.Header.Add("Accept", "application/problem+json")
 
 	if err != nil {
 		t.Fatalf("unable to create request: %s", err)
 	}
 
+	request.Header.Add("Accept", "application/problem+json")
 	response := akumu.Record(customProblemHandler, request)
 
 	data := make(map[string]any)
@@ -114,5 +130,65 @@ func TestProblemErrorUnwraps(t *testing.T) {
 
 	if !errors.Is(problem, someOtherErr) {
 		t.Fatalf("%s should be %s", problem, err)
+	}
+}
+
+func TestProblemWithCustomError(t *testing.T) {
+	request, err := http.NewRequest("GET", "/", nil)
+
+	if err != nil {
+		t.Fatalf("unable to create request: %s", err)
+	}
+
+	request.Header.Add("Accept", "application/problem+json")
+
+	response := akumu.Record(customProblemHandlerWithErr, request)
+
+	data := make(map[string]any)
+
+	if err := json.Unmarshal(response.Body.Bytes(), &data); err != nil {
+		t.Fatalf("unable to deserialize response body: %s", err)
+	}
+
+	errors, ok := data["errors"]
+
+	if !ok {
+		t.Fatalf("expected errors to be in the problem response")
+	}
+
+	errs := errors.([]any)
+
+	if expected := 4; len(errs) != expected {
+		t.Fatalf("expected %d errors but got %d", expected, len(errs))
+	}
+}
+
+func TestProblemDirectError(t *testing.T) {
+	request, err := http.NewRequest("GET", "/", nil)
+
+	if err != nil {
+		t.Fatalf("unable to create request: %s", err)
+	}
+
+	request.Header.Add("Accept", "application/problem+json")
+
+	response := akumu.Record(customProblemHandlerDirectErr, request)
+
+	data := make(map[string]any)
+
+	if err := json.Unmarshal(response.Body.Bytes(), &data); err != nil {
+		t.Fatalf("unable to deserialize response body: %s", err)
+	}
+
+	errors, ok := data["errors"]
+
+	if !ok {
+		t.Fatalf("expected errors to be in the problem response")
+	}
+
+	errs := errors.([]any)
+
+	if expected := 4; len(errs) != expected {
+		t.Fatalf("expected %d errors but got %d", expected, len(errs))
 	}
 }

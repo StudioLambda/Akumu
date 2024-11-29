@@ -132,6 +132,14 @@ type ProblemControls struct {
 	// in case it does not have one defined.
 	DefaultInstance ProblemControlsResolver[string]
 
+	// DefaultDetails determines the default details of a [Problem]
+	// in case it does not have one defined.
+	DefaultDetails ProblemControlsResolver[string]
+
+	// Errors determines if the problem should contain a stack-trace
+	// of errors from the error it comes from (if any).
+	Errors ProblemControlsResolver[bool]
+
 	// Response allows customizing the actual Builder response
 	// that a [Problem] should be resolved to.
 	Response ProblemControlsResolver[Builder]
@@ -162,6 +170,14 @@ func defaultedProblemControls(controls ProblemControls) ProblemControls {
 
 	if controls.DefaultInstance == nil {
 		controls.DefaultInstance = defaultProblemControlsInstance
+	}
+
+	if controls.DefaultDetails == nil {
+		controls.DefaultDetails = defaultProblemControlsDetails
+	}
+
+	if controls.Errors == nil {
+		controls.Errors = defaultProblemControlsErrors
 	}
 
 	if controls.Response == nil {
@@ -206,6 +222,20 @@ func defaultProblemControlsInstance(problem Problem, request *http.Request) stri
 	return request.URL.String()
 }
 
+// defaultProblemControlsDetails is the default value for the [ProblemControls] instance.
+func defaultProblemControlsDetails(problem Problem, request *http.Request) string {
+	if traces := problem.Errors(); len(traces) > 0 {
+		return traces[0].Error()
+	}
+
+	return ""
+}
+
+// defaultProblemControlsInstance is the default value for the [ProblemControls] instance.
+func defaultProblemControlsErrors(problem Problem, request *http.Request) bool {
+	return true
+}
+
 // ProblemControlsResponseFrom is a helper that generates a [ProblemControlsResolver] with
 // the given response content types. It is very useful to map mimes to responses.
 func ProblemControlsResponseFrom(responses map[string]Builder) ProblemControlsResolver[Builder] {
@@ -242,10 +272,8 @@ func defaultProblemControlsResponse(problem Problem, request *http.Request) Buil
 // the given error and status code.
 func NewProblem(err error, status int) Problem {
 	return Problem{
-		err:        err,
-		additional: make(map[string]any),
-		Detail:     err.Error(),
-		Status:     status,
+		err:    err,
+		Status: status,
 	}
 }
 
@@ -273,6 +301,22 @@ func (problem Problem) With(key string, value any) Problem {
 	return problem
 }
 
+// WithError returns a new [Problem] with the given error
+// set as the
+func (problem Problem) WithError(err error) Problem {
+	problem.err = err
+
+	return problem
+}
+
+// WithoutError returns a new [Problem] with the error
+// that's associated with it removed.
+func (problem Problem) WithoutError() Problem {
+	problem.err = nil
+
+	return problem
+}
+
 // Without removes an additional value to the given key.
 func (problem Problem) Without(key string) Problem {
 	if problem.additional == nil {
@@ -292,6 +336,12 @@ func (problem Problem) Error() string {
 	}
 
 	return problem.Title
+}
+
+// Errors returns all the strack-trace of errors that
+// are bound to this particular [Problem].
+func (problem Problem) Errors() []error {
+	return stackTrace(problem.err)
 }
 
 // Unwrap is used to get the original error from
@@ -369,9 +419,9 @@ func (problem Problem) controls(request *http.Request) ProblemControls {
 	return defaultedProblemControls(controls)
 }
 
-// defaulted returns a [Problem] that is defaulted using the given
+// Defaulted returns a [Problem] that is defaulted using the given
 // request and the current instance.
-func (problem Problem) defaulted(request *http.Request) Problem {
+func (problem Problem) Defaulted(request *http.Request) Problem {
 	controls := problem.controls(request)
 
 	if problem.Type == "" {
@@ -390,6 +440,21 @@ func (problem Problem) defaulted(request *http.Request) Problem {
 		problem.Instance = controls.DefaultInstance(problem, request)
 	}
 
+	if problem.Detail == "" && problem.err != nil {
+		problem.Detail = controls.DefaultDetails(problem, request)
+	}
+
+	if controls.Errors(problem, request) {
+		traces := problem.Errors()
+		messages := make([]string, len(traces))
+
+		for i, trace := range traces {
+			messages[i] = trace.Error()
+		}
+
+		problem = problem.With("errors", messages)
+	}
+
 	if controls.Lowercase(problem, request) {
 		problem.Title = lowercase(problem.Title)
 		problem.Detail = lowercase(problem.Detail)
@@ -403,5 +468,5 @@ func (problem Problem) defaulted(request *http.Request) Problem {
 func (problem Problem) Respond(request *http.Request) Builder {
 	controls := problem.controls(request)
 
-	return controls.Response(problem.defaulted(request), request)
+	return controls.Response(problem.Defaulted(request), request)
 }
