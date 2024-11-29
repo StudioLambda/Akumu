@@ -108,6 +108,9 @@ type Problem struct {
 // a [Problem] and a [http.Request].
 type ProblemControlsResolver[R any] func(problem Problem, request *http.Request) R
 
+// ProblemControls is the structure used to control how
+// [Problem] instances are responded. Those helpers allow
+// controlling certain aspects of the default handler.
 type ProblemControls struct {
 	// Lowercase determines if the problem controls
 	// should lowercase the errors found.
@@ -138,6 +141,8 @@ type ProblemControls struct {
 // problem controls are stored in the request.
 type ProblemsKey struct{}
 
+// defaultedProblemControls returns a [ProblemControls] that is defaulted
+// with the default values for each field if they are nil on the controls param.
 func defaultedProblemControls(controls ProblemControls) ProblemControls {
 	if controls.Lowercase == nil {
 		controls.Lowercase = defaultProblemControlsLowercase
@@ -176,26 +181,33 @@ func Problems(request *http.Request) (ProblemControls, bool) {
 	return controls, ok
 }
 
+// defaultProblemControlsLowercase is the default value for the [ProblemControls] lowercase.
 func defaultProblemControlsLowercase(problem Problem, request *http.Request) bool {
 	return true
 }
 
+// defaultProblemControlsStatus is the default value for the [ProblemControls] status.
 func defaultProblemControlsStatus(problem Problem, request *http.Request) int {
 	return http.StatusInternalServerError
 }
 
+// defaultProblemControlsType is the default value for the [ProblemControls] type.
 func defaultProblemControlsType(problem Problem, request *http.Request) string {
 	return "about:blank"
 }
 
+// defaultProblemControlsTitle is the default value for the [ProblemControls] title.
 func defaultProblemControlsTitle(problem Problem, request *http.Request) string {
 	return http.StatusText(problem.Status)
 }
 
+// defaultProblemControlsInstance is the default value for the [ProblemControls] instance.
 func defaultProblemControlsInstance(problem Problem, request *http.Request) string {
 	return request.URL.String()
 }
 
+// ProblemControlsResponseFrom is a helper that generates a [ProblemControlsResolver] with
+// the given response content types. It is very useful to map mimes to responses.
 func ProblemControlsResponseFrom(responses map[string]Builder) ProblemControlsResolver[Builder] {
 	return func(problem Problem, request *http.Request) Builder {
 		accept := utils.ParseAccept(request)
@@ -211,6 +223,8 @@ func ProblemControlsResponseFrom(responses map[string]Builder) ProblemControlsRe
 	}
 }
 
+// defaultProblemControlsResponse is the default response that will be
+// used on the [ProblemControls]
 func defaultProblemControlsResponse(problem Problem, request *http.Request) Builder {
 	responses := map[string]Builder{
 		"application/problem+json": Response(problem.Status).
@@ -280,6 +294,8 @@ func (problem Problem) Error() string {
 	return problem.Title
 }
 
+// Unwrap is used to get the original error from
+// the problem to use with the errors pkg.
 func (problem Problem) Unwrap() error {
 	return problem.err
 }
@@ -340,6 +356,9 @@ func (problem *Problem) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// controls returns the [ProblemControls] associated with the request. It is always
+// defaulted as well. If not found in the request, a fresh defaulted instance
+// is returned.
 func (problem Problem) controls(request *http.Request) ProblemControls {
 	controls := ProblemControls{}
 
@@ -350,6 +369,8 @@ func (problem Problem) controls(request *http.Request) ProblemControls {
 	return defaultedProblemControls(controls)
 }
 
+// defaulted returns a [Problem] that is defaulted using the given
+// request and the current instance.
 func (problem Problem) defaulted(request *http.Request) Problem {
 	controls := problem.controls(request)
 
