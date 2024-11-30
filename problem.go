@@ -336,7 +336,7 @@ func (problem Problem) Error() string {
 		return fmt.Sprintf("%d %s: %s", problem.Status, http.StatusText(problem.Status), problem.err)
 	}
 
-	return problem.Title
+	return fmt.Sprintf("%d %s: %s", problem.Status, http.StatusText(problem.Status), problem.Title)
 }
 
 // Errors returns all the strack-trace of errors that
@@ -441,7 +441,7 @@ func (problem Problem) Defaulted(request *http.Request) Problem {
 		problem.Instance = controls.DefaultInstance(problem, request)
 	}
 
-	if problem.Detail == "" && problem.err != nil {
+	if problem.Detail == "" {
 		problem.Detail = controls.DefaultDetails(problem, request)
 	}
 
