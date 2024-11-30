@@ -1,19 +1,5 @@
 package akumu
 
-import "unicode"
-
-// lowercase makes the input string a lowercased
-// string using [unicode.ToLower] on each character.
-func lowercase(str string) string {
-	result := make([]byte, len(str))
-
-	for i, r := range str {
-		result[i] += byte(unicode.ToLower(r))
-	}
-
-	return string(result)
-}
-
 // stackTrace creates a stack trace of all the errors found
 // that have been either Joined or Wrapped using [errors.Join]
 // or [fmt.Errorf] with `%w` directive.

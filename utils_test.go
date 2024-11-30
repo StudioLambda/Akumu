@@ -1,14 +1,21 @@
 package akumu
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 )
 
-func TestUtilsLowercase(t *testing.T) {
-	word := "somEthing-IsNot_lowercased2"
-	lowercased := lowercase(word)
+func TestUtilsStackTrace(t *testing.T) {
+	err := errors.Join(
+		errors.New("first"),
+		fmt.Errorf("%w: foo", errors.New("second")),
+		errors.Join(errors.New("third"), errors.New("last")),
+	)
 
-	if expected := "something-isnot_lowercased2"; lowercased != expected {
-		t.Fatalf("expected '%s' but got '%s'", expected, lowercased)
+	trace := stackTrace(err)
+
+	if expected := 4; len(trace) != expected {
+		t.Fatalf("expected len '%d' but got '%d'", expected, len(trace))
 	}
 }

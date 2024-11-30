@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"strings"
 
 	"github.com/studiolambda/akumu/utils"
 )
@@ -444,20 +445,27 @@ func (problem Problem) Defaulted(request *http.Request) Problem {
 		problem.Detail = controls.DefaultDetails(problem, request)
 	}
 
+	lower := controls.Lowercase(problem, request)
+
 	if controls.Errors(problem, request) {
 		traces := problem.Errors()
 		messages := make([]string, len(traces))
 
 		for i, trace := range traces {
+			if lower {
+				messages[i] = strings.ToLower(trace.Error())
+				continue
+			}
+
 			messages[i] = trace.Error()
 		}
 
 		problem = problem.With("errors", messages)
 	}
 
-	if controls.Lowercase(problem, request) {
-		problem.Title = lowercase(problem.Title)
-		problem.Detail = lowercase(problem.Detail)
+	if lower {
+		problem.Title = strings.ToLower(problem.Title)
+		problem.Detail = strings.ToLower(problem.Detail)
 	}
 
 	return problem
