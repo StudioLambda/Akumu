@@ -14,17 +14,57 @@ func TestRouterHas(t *testing.T) {
 		return akumu.Response(http.StatusOK)
 	})
 
-	t.Run("Exists", func(t *testing.T) {
-		if !router.Has(http.MethodGet, "/") {
-			t.Fatal("router should have the route")
-		}
+	router.Get("/foo/", func(request *http.Request) error {
+		return akumu.Response(http.StatusOK)
 	})
 
-	t.Run("NotFound", func(t *testing.T) {
-		if router.Has(http.MethodGet, "/not-found") {
-			t.Fatal("router should not have the route")
-		}
+	router.Get("/bar", func(request *http.Request) error {
+		return akumu.Response(http.StatusOK)
 	})
+
+	router.Get("/baz/{other...}", func(request *http.Request) error {
+		return akumu.Response(http.StatusOK)
+	})
+
+	if route := "/"; !router.Has(http.MethodGet, route) {
+		t.Fatalf("router should have the %s route", route)
+	}
+
+	if route := "/foo"; !router.Has(http.MethodGet, route) {
+		t.Fatalf("router should have the %s route", route)
+	}
+
+	if route := "/foo/"; !router.Has(http.MethodGet, route) {
+		t.Fatalf("router should have the %s route", route)
+	}
+
+	if route := "/bar"; !router.Has(http.MethodGet, route) {
+		t.Fatalf("router should have the %s route", route)
+	}
+
+	if route := "/bar/"; !router.Has(http.MethodGet, route) {
+		t.Fatalf("router should have the %s route", route)
+	}
+
+	if route := "/baz"; !router.Has(http.MethodGet, route) {
+		t.Fatalf("router should have the %s route", route)
+	}
+
+	if route := "/baz/"; !router.Has(http.MethodGet, route) {
+		t.Fatalf("router should have the %s route", route)
+	}
+
+	if route := "/baz/foo/bar/baz"; !router.Has(http.MethodGet, route) {
+		t.Fatalf("router should have the %s route", route)
+	}
+
+	if route := "/baz/foo/bar/baz/"; !router.Has(http.MethodGet, route) {
+		t.Fatalf("router should have the %s route", route)
+	}
+
+	if route := "/not-found"; router.Has(http.MethodGet, route) {
+		t.Fatalf("router should not have the %s route", route)
+	}
 }
 
 func TestRouterMatches(t *testing.T) {

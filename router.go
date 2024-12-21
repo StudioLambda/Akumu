@@ -132,6 +132,14 @@ func (router *Router) Use(middlewares ...Middleware) {
 // method and pattern. This is usefull if you need to dynamically
 // register a route to the router using a string as the method.
 //
+// A notable difference is that the patterns's ending slash "/" is
+// not treated as an annonymous catch-all "{...}" and is instead treated
+// as if it finished with "/{$}", making a specific route only.
+//
+// If the route does not finish in "/", one will be added automatically and
+// then the paragraph above will apply unless the route finishes in a catch-all
+// parameter "...}"
+//
 // Typically, the method string should be one of the following:
 //   - [http.MethodGet]
 //   - [http.MethodHead]
@@ -143,15 +151,25 @@ func (router *Router) Use(middlewares ...Middleware) {
 //   - [http.MethodOptions]
 //   - [http.MethodTrace]
 func (router *Router) Method(method string, pattern string, handler Handler) {
-	pattern = path.Join(router.pattern, pattern)
-
-	if !strings.HasSuffix(pattern, "/") {
-		pattern += "/"
-	}
-
 	router.
 		mux().
-		Handle(fmt.Sprintf("%s %s{$}", method, pattern), router.wrap(handler))
+		Handle(router.generatePattern(method, pattern), router.wrap(handler))
+}
+
+// generatePattern creates the actual pattern that will be
+// registered to the mux handler.
+func (router *Router) generatePattern(method string, pattern string) string {
+	pattern = path.Join(router.pattern, pattern)
+
+	if strings.HasSuffix(pattern, "...}") {
+		return fmt.Sprintf("%s %s", method, pattern)
+	}
+
+	if !strings.HasSuffix(pattern, "/") {
+		return fmt.Sprintf("%s %s/{$}", method, pattern)
+	}
+
+	return fmt.Sprintf("%s %s{$}", method, pattern)
 }
 
 // Get registers a new handler to the router using [Router.Method]
@@ -244,7 +262,7 @@ func (router *Router) Matches(request *http.Request) bool {
 // Handler returns the [Handler] that matches the given method and pattern.
 // The second return value determines if the [Handler] was found or not.
 //
-// For matching against an [http.Request]use the  [Router.HandlerMatch] method.
+// For matching against an [http.Request] use the [Router.HandlerMatch] method.
 func (router *Router) Handler(method string, pattern string) (Handler, bool) {
 	if request, err := http.NewRequest(method, pattern, nil); err == nil {
 		return router.HandlerMatch(request)
@@ -258,6 +276,10 @@ func (router *Router) Handler(method string, pattern string) (Handler, bool) {
 //
 // For matching against a method and a pattern, use the [Router.Handler] method.
 func (router *Router) HandlerMatch(request *http.Request) (Handler, bool) {
+	if !strings.HasSuffix(request.URL.Path, "/") {
+		request.URL.Path += "/"
+	}
+
 	if handler, pattern := router.native.Handler(request); pattern != "" {
 		if handler, ok := handler.(Handler); ok {
 			return handler, true

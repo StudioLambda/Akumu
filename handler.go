@@ -2,6 +2,7 @@ package akumu
 
 import (
 	"net/http"
+	"net/http/httptest"
 )
 
 // Handler is the akumu's equivalent of the [http.Handler].
@@ -77,6 +78,13 @@ func (handler Handler) HandlerFunc() http.HandlerFunc {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		handler.ServeHTTP(writer, request)
 	})
+}
+
+// Record records what a given [Handler] would give as a reponse to a [http.Request].
+//
+// The response is recorded using a [httptest.ResponseRecorder].
+func (handler Handler) Record(request *http.Request) *httptest.ResponseRecorder {
+	return Record(handler, request)
 }
 
 // HandlerFunc transforms a [Handler] into an [http.HandlerFunc].
