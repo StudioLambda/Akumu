@@ -128,6 +128,14 @@ func (router *Router) Use(middlewares ...Middleware) {
 	router.middlewares = append(router.middlewares, middlewares...)
 }
 
+// register adds the given pattern and handler to the actual native
+// router [http.ServeMux].
+func (router *Router) register(pattern string, handler http.Handler) {
+	router.
+		mux().
+		Handle(pattern, handler)
+}
+
 // Method registers a new handler to the router with the given
 // method and pattern. This is usefull if you need to dynamically
 // register a route to the router using a string as the method.
@@ -151,26 +159,61 @@ func (router *Router) Use(middlewares ...Middleware) {
 //   - [http.MethodOptions]
 //   - [http.MethodTrace]
 func (router *Router) Method(method string, pattern string, handler Handler) {
-	router.
-		mux().
-		Handle(router.generatePattern(method, pattern), router.wrap(handler))
+	pattern = path.Join(router.pattern, pattern)
+
+	if pattern == "/" {
+		router.register(
+			fmt.Sprintf("%s %s{$}", method, pattern),
+			router.wrap(handler),
+		)
+
+		return
+	}
+
+	if !strings.HasSuffix("/", pattern) && !strings.HasSuffix(pattern, "...}") {
+		// The redirection route should ONLY be registered when:
+		// - The path does not end in "/"
+		// - The path does not end in "...}"
+		router.register(
+			fmt.Sprintf("%s %s/{$}", method, pattern),
+			router.redirect(pattern),
+		)
+	}
+
+	router.register(
+		fmt.Sprintf("%s %s", method, pattern),
+		router.wrap(handler),
+	)
+}
+
+// redirect is a helper handler that takes care of redirecting
+// to the specified path while maintaining the query string.
+func (router *Router) redirect(path string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		target := path
+		if r.URL.RawQuery != "" {
+			target += "?" + r.URL.RawQuery
+		}
+
+		http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+	})
 }
 
 // generatePattern creates the actual pattern that will be
 // registered to the mux handler.
-func (router *Router) generatePattern(method string, pattern string) string {
-	pattern = path.Join(router.pattern, pattern)
+// func (router *Router) generatePattern(method string, pattern string) string {
+// 	pattern = path.Join(router.pattern, pattern)
 
-	if strings.HasSuffix(pattern, "...}") {
-		return fmt.Sprintf("%s %s", method, pattern)
-	}
+// 	if strings.HasSuffix(pattern, "...}") {
+// 		return fmt.Sprintf("%s %s", method, pattern)
+// 	}
 
-	if !strings.HasSuffix(pattern, "/") {
-		return fmt.Sprintf("%s %s/{$}", method, pattern)
-	}
+// 	if !strings.HasSuffix(pattern, "/") {
+// 		return fmt.Sprintf("%s %s/{$}", method, pattern)
+// 	}
 
-	return fmt.Sprintf("%s %s{$}", method, pattern)
-}
+// 	return fmt.Sprintf("%s %s{$}", method, pattern)
+// }
 
 // Get registers a new handler to the router using [Router.Method]
 // and using the [http.MethodGet] as the method parameter.
@@ -263,7 +306,7 @@ func (router *Router) Matches(request *http.Request) bool {
 // The second return value determines if the [Handler] was found or not.
 //
 // For matching against an [http.Request] use the [Router.HandlerMatch] method.
-func (router *Router) Handler(method string, pattern string) (Handler, bool) {
+func (router *Router) Handler(method string, pattern string) (http.Handler, bool) {
 	if request, err := http.NewRequest(method, pattern, nil); err == nil {
 		return router.HandlerMatch(request)
 	}
@@ -275,15 +318,9 @@ func (router *Router) Handler(method string, pattern string) (Handler, bool) {
 // The second return value determines if the [Handler] was found or not.
 //
 // For matching against a method and a pattern, use the [Router.Handler] method.
-func (router *Router) HandlerMatch(request *http.Request) (Handler, bool) {
-	if !strings.HasSuffix(request.URL.Path, "/") {
-		request.URL.Path += "/"
-	}
-
+func (router *Router) HandlerMatch(request *http.Request) (http.Handler, bool) {
 	if handler, pattern := router.native.Handler(request); pattern != "" {
-		if handler, ok := handler.(Handler); ok {
-			return handler, true
-		}
+		return handler, true
 	}
 
 	return nil, false
