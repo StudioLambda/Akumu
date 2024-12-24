@@ -141,6 +141,10 @@ type ProblemControls struct {
 	// of errors from the error it comes from (if any).
 	Errors ProblemControlsResolver[bool]
 
+	// ErrorsKey determines the key to use when appending the
+	// error stack when [ProblemControls]'s Errors returns true.
+	ErrorsKey ProblemControlsResolver[string]
+
 	// Response allows customizing the actual Builder response
 	// that a [Problem] should be resolved to.
 	Response ProblemControlsResolver[Builder]
@@ -179,6 +183,10 @@ func defaultedProblemControls(controls ProblemControls) ProblemControls {
 
 	if controls.Errors == nil {
 		controls.Errors = defaultProblemControlsErrors
+	}
+
+	if controls.ErrorsKey == nil {
+		controls.ErrorsKey = defaultProblemControlsErrorsKey
 	}
 
 	if controls.Response == nil {
@@ -235,6 +243,11 @@ func defaultProblemControlsDetails(problem Problem, request *http.Request) strin
 // defaultProblemControlsInstance is the default value for the [ProblemControls] instance.
 func defaultProblemControlsErrors(problem Problem, request *http.Request) bool {
 	return true
+}
+
+// defaultProblemControlsInstance is the default value for the [ProblemControls] instance.
+func defaultProblemControlsErrorsKey(problem Problem, request *http.Request) string {
+	return "errors"
 }
 
 // ProblemControlsResponseFrom is a helper that generates a [ProblemControlsResolver] with
@@ -460,7 +473,10 @@ func (problem Problem) Defaulted(request *http.Request) Problem {
 			messages[i] = trace.Error()
 		}
 
-		problem = problem.With("errors", messages)
+		problem = problem.With(
+			controls.ErrorsKey(problem, request),
+			messages,
+		)
 	}
 
 	if lower {

@@ -12,6 +12,8 @@ for HTTP APIs (RFC 9457), making it easy to create standards-compliant APIs.
   allowing handlers to return arbitrary errors.
 - Error Handling with Responder Interface: Any returned error is checked for Responder
   implementation, providing flexibility in crafting responses.
+- Automatic error stack when a failure is provided. Errors and problems automatically craft
+  an error stack in an specific field.
 - Built-In Response Builder: Quickly build and customize responses while adhering to best
   practices like setting appropriate HTTP headers.
 - Middleware Support: Seamlessly integrate custom or provided middlewares for cleaner,
