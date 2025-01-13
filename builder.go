@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 )
@@ -91,6 +92,12 @@ type Builder struct {
 	writer func(writer http.ResponseWriter)
 }
 
+// RawBuilder is a raw response that can be used
+// to return a raw [http.Builder] from a [Handler].
+type RawBuilder struct {
+	http.Handler
+}
+
 var (
 	// ErrWriterRequiresFlusher is an error that determines that
 	// the given response writer needs a flusher in order to push
@@ -98,6 +105,12 @@ var (
 	// not happen due [http.ResponseWriter] already implementing [http.Flusher].
 	ErrWriterRequiresFlusher = errors.New("response writer requires a flusher")
 )
+
+// Error implements the error interface
+// for the Raw builder.
+func (raw RawBuilder) Error() string {
+	return fmt.Sprintf("%v", raw.Handler)
+}
 
 // writeHeaders writes the given response headers by calling
 // [http.ResponseWriter]'s `WriteHeader` method.
@@ -228,6 +241,15 @@ func DefaultResponderHandler(writer http.ResponseWriter, request *http.Request, 
 		}
 
 		onError(errors.Join(serverErr, ErrServerDefault))
+	}
+}
+
+// Raw is a used to create a [RawBuilder] response
+// that can be used to return a [http.Handler] directly
+// on [Handler] functions.
+func Raw(handler http.Handler) RawBuilder {
+	return RawBuilder{
+		Handler: handler,
 	}
 }
 

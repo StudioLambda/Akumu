@@ -46,6 +46,11 @@ func handle(writer http.ResponseWriter, request *http.Request, err error, parent
 		return
 	}
 
+	if raw, ok := err.(RawResponder); ok {
+		raw.ServeHTTP(writer, request)
+		return
+	}
+
 	if responder, ok := err.(Responder); ok {
 		handleResponder(writer, request, parent, responder)
 		return
@@ -65,6 +70,12 @@ func handle(writer http.ResponseWriter, request *http.Request, err error, parent
 	NewProblem(err, http.StatusInternalServerError).
 		Respond(request).
 		Handle(writer, request)
+}
+
+func RawHandler(handler http.Handler) Handler {
+	return func(*http.Request) error {
+		return Raw(handler)
+	}
 }
 
 // ServeHTTP implements the [http.Handler] interface to have

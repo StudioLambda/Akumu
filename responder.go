@@ -14,3 +14,9 @@ import "net/http"
 type Responder interface {
 	Respond(request *http.Request) Builder
 }
+
+// RawBuilder is a raw response that can be used
+// to return a raw [http.Builder] from a [Handler].
+type RawResponder interface {
+	http.Handler
+}
