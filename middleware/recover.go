@@ -53,6 +53,8 @@ func RecoverWith(handler http.Handler, handle func(value any) error) http.Handle
 				akumu.
 					Failed(handle(err)).
 					Handle(writer, request)
+
+				return
 			}
 		}()
 
