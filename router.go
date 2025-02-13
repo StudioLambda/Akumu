@@ -199,21 +199,30 @@ func (router *Router) redirect(path string) http.Handler {
 	})
 }
 
-// generatePattern creates the actual pattern that will be
-// registered to the mux handler.
-// func (router *Router) generatePattern(method string, pattern string) string {
-// 	pattern = path.Join(router.pattern, pattern)
+// Methods allows binding multiple methods to the pattern and handler.
+func (router *Router) Methods(methods []string, pattern string, handler Handler) {
+	for _, method := range methods {
+		router.Method(method, pattern, handler)
+	}
+}
 
-// 	if strings.HasSuffix(pattern, "...}") {
-// 		return fmt.Sprintf("%s %s", method, pattern)
-// 	}
+// Any registers all methods to the given pattern and handler.
+func (router *Router) Any(pattern string, handler Handler) {
+	methods := []string{
+		http.MethodGet,
+		http.MethodGet,
+		http.MethodHead,
+		http.MethodPost,
+		http.MethodPut,
+		http.MethodPatch,
+		http.MethodDelete,
+		http.MethodConnect,
+		http.MethodOptions,
+		http.MethodTrace,
+	}
 
-// 	if !strings.HasSuffix(pattern, "/") {
-// 		return fmt.Sprintf("%s %s/{$}", method, pattern)
-// 	}
-
-// 	return fmt.Sprintf("%s %s{$}", method, pattern)
-// }
+	router.Methods(methods, pattern, handler)
+}
 
 // Get registers a new handler to the router using [Router.Method]
 // and using the [http.MethodGet] as the method parameter.
