@@ -210,7 +210,6 @@ func (router *Router) Methods(methods []string, pattern string, handler Handler)
 func (router *Router) Any(pattern string, handler Handler) {
 	methods := []string{
 		http.MethodGet,
-		http.MethodGet,
 		http.MethodHead,
 		http.MethodPost,
 		http.MethodPut,
