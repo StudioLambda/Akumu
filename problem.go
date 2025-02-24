@@ -262,8 +262,28 @@ func ProblemControlsResponseFrom(responses map[string]Builder) ProblemControlsRe
 			}
 		}
 
+		textResponse := fmt.Sprintf(
+			"%d %s\n\n%s",
+			problem.Status,
+			problem.Title,
+			problem.Detail,
+		)
+
+		controls := problem.controls(request)
+
+		errors, found := problem.Additional(controls.ErrorsKey(problem, request))
+		traces, tracesOK := errors.([]string)
+
+		if found && tracesOK && controls.Errors(problem, request) {
+			textResponse += fmt.Sprintf("\n\n")
+
+			for _, trace := range traces {
+				textResponse += fmt.Sprintf("%s\n", trace)
+			}
+		}
+
 		return Response(problem.Status).
-			Text(fmt.Sprintf("%d %s\n\n%s", problem.Status, problem.Title, problem.Detail))
+			Text(textResponse)
 	}
 }
 

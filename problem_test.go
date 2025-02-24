@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/studiolambda/akumu"
@@ -160,6 +161,21 @@ func TestProblemWithCustomError(t *testing.T) {
 
 	if expected := 4; len(errs) != expected {
 		t.Fatalf("expected %d errors but got %d", expected, len(errs))
+	}
+}
+
+func TestProblemWithCustomError2(t *testing.T) {
+	request, err := http.NewRequest("GET", "/", nil)
+
+	if err != nil {
+		t.Fatalf("unable to create request: %s", err)
+	}
+
+	response := akumu.Record(customProblemHandlerWithErr, request)
+	res := string(response.Body.Bytes())
+
+	if expect := "last error: failed"; !strings.Contains(res, expect) {
+		t.Fatalf("error should contain '%s'", expect)
 	}
 }
 
